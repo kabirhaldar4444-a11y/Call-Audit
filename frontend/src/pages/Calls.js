@@ -162,6 +162,7 @@ const Calls = () => {
     duration: '',
     talktime: '',
     dispose: '',
+    secondDispose: '',
     auditorName: ''
   });
   const [deletingCall, setDeletingCall] = useState(null);
@@ -184,6 +185,7 @@ const Calls = () => {
     duration: true,
     talktime: true,
     dispose: true,
+    secondDispose: true,
     agentEmail: true,
     auditorName: true,
     status: true,
@@ -201,6 +203,7 @@ const Calls = () => {
     { id: 'duration', name: 'Duration' },
     { id: 'talktime', name: 'Talktime' },
     { id: 'dispose', name: 'Dispose' },
+    { id: 'secondDispose', name: 'Second Dispose' },
     { id: 'agentEmail', name: 'Agent Email' },
     { id: 'auditorName', name: 'Auditor Name' },
     { id: 'status', name: 'Status' },
@@ -301,6 +304,9 @@ const Calls = () => {
         agentName: data.agentName,
         process: data.process,
         duration: data.duration,
+        talktime: data.talktime,
+        dispose: data.dispose,
+        secondDispose: data.secondDispose,
         status: data.status,
         auditorName: data.auditorName
       };
@@ -366,6 +372,7 @@ const Calls = () => {
       duration: call.duration || '',
       talktime: call.talktime || '',
       dispose: call.dispose || '',
+      secondDispose: call.secondDispose || '',
       auditorName: call.auditorName || ''
     });
   };
@@ -384,6 +391,7 @@ const Calls = () => {
         duration: editFormData.duration,
         talktime: editFormData.talktime,
         dispose: editFormData.dispose,
+        secondDispose: editFormData.secondDispose,
         auditorName: editFormData.auditorName
       });
       
@@ -559,6 +567,15 @@ const Calls = () => {
       minWidth: 120,
       editable: () => showEditButton,
       hide: !columnVisibility.dispose
+    },
+    { 
+      field: "secondDispose", 
+      headerName: "Second Dispose", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 140,
+      editable: () => showEditButton,
+      hide: !columnVisibility.secondDispose
     },
     { 
       field: "agentEmail", 
@@ -1122,6 +1139,10 @@ const Calls = () => {
                 <span className="info-value">{viewingCall.dispose || 'N/A'}</span>
               </div>
               <div className="info-item">
+                <span className="info-label">Second Dispose</span>
+                <span className="info-value">{viewingCall.secondDispose || 'N/A'}</span>
+              </div>
+              <div className="info-item">
                 <span className="info-label">Date & Time</span>
                 <span className="info-value">{viewingCall.date ? new Date(viewingCall.date).toLocaleString() : 'N/A'}</span>
               </div>
@@ -1224,6 +1245,16 @@ const Calls = () => {
                   value={editFormData.dispose}
                   onChange={(e) => setEditFormData({...editFormData, dispose: e.target.value})}
                   placeholder="e.g. Completed"
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Second Dispose</label>
+                <input 
+                  type="text" 
+                  value={editFormData.secondDispose}
+                  onChange={(e) => setEditFormData({...editFormData, secondDispose: e.target.value})}
+                  placeholder="e.g. Busy"
                   className="modal-form-input"
                 />
               </div>

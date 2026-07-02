@@ -159,6 +159,9 @@ const Audits = () => {
     process: '',
     status: 'audited',
     duration: '',
+    talktime: '',
+    dispose: '',
+    secondDispose: '',
     auditorName: ''
   });
   const [deletingCall, setDeletingCall] = useState(null);
@@ -179,6 +182,9 @@ const Audits = () => {
     process: true,
     date: true,
     duration: true,
+    talktime: true,
+    dispose: true,
+    secondDispose: true,
     agentEmail: true,
     auditorName: true,
     status: true,
@@ -194,6 +200,9 @@ const Audits = () => {
     { id: 'process', name: 'Process' },
     { id: 'date', name: 'Date & Time' },
     { id: 'duration', name: 'Duration' },
+    { id: 'talktime', name: 'Talktime' },
+    { id: 'dispose', name: 'Dispose' },
+    { id: 'secondDispose', name: 'Second Dispose' },
     { id: 'agentEmail', name: 'Agent Email' },
     { id: 'auditorName', name: 'Auditor Name' },
     { id: 'status', name: 'Status' },
@@ -303,6 +312,9 @@ const Audits = () => {
         agentName: data.agentName,
         process: data.process,
         duration: data.duration,
+        talktime: data.talktime,
+        dispose: data.dispose,
+        secondDispose: data.secondDispose,
         status: data.status,
         auditorName: data.auditorName
       };
@@ -367,6 +379,9 @@ const Audits = () => {
       process: call.process || '',
       status: call.status || 'audited',
       duration: call.duration || '',
+      talktime: call.talktime || '',
+      dispose: call.dispose || '',
+      secondDispose: call.secondDispose || '',
       auditorName: call.auditorName || ''
     });
   };
@@ -383,6 +398,9 @@ const Audits = () => {
         process: editFormData.process,
         status: editFormData.status,
         duration: editFormData.duration,
+        talktime: editFormData.talktime,
+        dispose: editFormData.dispose,
+        secondDispose: editFormData.secondDispose,
         auditorName: editFormData.auditorName
       });
       
@@ -521,6 +539,33 @@ const Audits = () => {
       maxWidth: 120,
       editable: () => showEditButton,
       hide: !columnVisibility.duration
+    },
+    { 
+      field: "talktime", 
+      headerName: "Talktime", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 100,
+      editable: () => showEditButton,
+      hide: !columnVisibility.talktime
+    },
+    { 
+      field: "dispose", 
+      headerName: "Dispose", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 120,
+      editable: () => showEditButton,
+      hide: !columnVisibility.dispose
+    },
+    { 
+      field: "secondDispose", 
+      headerName: "Second Dispose", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 140,
+      editable: () => showEditButton,
+      hide: !columnVisibility.secondDispose
     },
     { 
       field: "agentEmail", 
@@ -1053,6 +1098,18 @@ const Audits = () => {
                 <span className="info-value font-highlight">{viewingCall.duration || 'N/A'}</span>
               </div>
               <div className="info-item">
+                <span className="info-label">Talktime</span>
+                <span className="info-value font-highlight">{viewingCall.talktime || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Dispose</span>
+                <span className="info-value">{viewingCall.dispose || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Second Dispose</span>
+                <span className="info-value">{viewingCall.secondDispose || 'N/A'}</span>
+              </div>
+              <div className="info-item">
                 <span className="info-label">Date & Time</span>
                 <span className="info-value">{viewingCall.date ? new Date(viewingCall.date).toLocaleString() : 'N/A'}</span>
               </div>
@@ -1134,6 +1191,36 @@ const Audits = () => {
                   value={editFormData.duration}
                   onChange={(e) => setEditFormData({...editFormData, duration: e.target.value})}
                   required
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Talktime</label>
+                <input 
+                  type="text" 
+                  value={editFormData.talktime}
+                  onChange={(e) => setEditFormData({...editFormData, talktime: e.target.value})}
+                  placeholder="e.g. 04:12"
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Dispose</label>
+                <input 
+                  type="text" 
+                  value={editFormData.dispose}
+                  onChange={(e) => setEditFormData({...editFormData, dispose: e.target.value})}
+                  placeholder="e.g. Completed"
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Second Dispose</label>
+                <input 
+                  type="text" 
+                  value={editFormData.secondDispose}
+                  onChange={(e) => setEditFormData({...editFormData, secondDispose: e.target.value})}
+                  placeholder="e.g. Busy"
                   className="modal-form-input"
                 />
               </div>

@@ -40,6 +40,9 @@ const callSchema = new mongoose.Schema(
     dispose: {
       type: String,
     },
+    secondDispose: {
+      type: String,
+    },
     remarks: {
       type: String,
     },

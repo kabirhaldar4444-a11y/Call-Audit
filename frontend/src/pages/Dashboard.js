@@ -177,6 +177,9 @@ const Dashboard = () => {
     process: '',
     status: '',
     duration: '',
+    talktime: '',
+    dispose: '',
+    secondDispose: '',
     auditorName: ''
   });
   const [deletingCall, setDeletingCall] = useState(null);
@@ -198,6 +201,7 @@ const Dashboard = () => {
     duration: true,
     talktime: true,
     dispose: true,
+    secondDispose: true,
     agentEmail: true,
     auditorName: true,
     status: true,
@@ -213,6 +217,7 @@ const Dashboard = () => {
     { id: 'duration', name: 'Duration' },
     { id: 'talktime', name: 'Talktime' },
     { id: 'dispose', name: 'Dispose' },
+    { id: 'secondDispose', name: 'Second Dispose' },
     { id: 'agentEmail', name: 'Agent Email' },
     { id: 'auditorName', name: 'Auditor Name' },
     { id: 'status', name: 'Status' },
@@ -325,6 +330,9 @@ const Dashboard = () => {
         agentName: data.agentName,
         process: data.process,
         duration: data.duration,
+        talktime: data.talktime,
+        dispose: data.dispose,
+        secondDispose: data.secondDispose,
         status: data.status,
         auditorName: data.auditorName
       };
@@ -383,6 +391,9 @@ const Dashboard = () => {
       process: call.process || '',
       status: call.status || 'pending',
       duration: call.duration || '',
+      talktime: call.talktime || '',
+      dispose: call.dispose || '',
+      secondDispose: call.secondDispose || '',
       auditorName: call.auditorName || ''
     });
   };
@@ -399,6 +410,9 @@ const Dashboard = () => {
         process: editFormData.process,
         status: editFormData.status,
         duration: editFormData.duration,
+        talktime: editFormData.talktime,
+        dispose: editFormData.dispose,
+        secondDispose: editFormData.secondDispose,
         auditorName: editFormData.auditorName
       });
       
@@ -629,18 +643,14 @@ const Dashboard = () => {
             const talktimeVal = normalizedRow['talktime'] || normalizedRow['talk time'] || '';
             const talktime = formatExcelDuration(talktimeVal);
 
-            // Smart dispose extraction: Excel sheets may have duplicate DISPOSE columns.
-            // XLSX renames the second to "DISPOSE_1" (normalized: "dispose 1").
-            // The first DISPOSE often contains time data, the second has the actual text.
-            let rawDispose = normalizedRow['dispose'] || '';
-            const dispose1 = normalizedRow['dispose 1'] || '';
-            const firstDispose = normalizedRow['first dispose'] || '';
-            // If the primary dispose looks like a time value (e.g. 0:00:10), use the text alternative
-            const isTimeValue = /^\d{1,2}:\d{2}(:\d{2})?$/.test(String(rawDispose).trim());
+            // FIRST DISPOSE is the actual dispose text column in the Excel sheet
             const dispose = String(
-              isTimeValue
-                ? (dispose1 || firstDispose || normalizedRow['disposition'] || rawDispose)
-                : (rawDispose || normalizedRow['disposition'] || '')
+              normalizedRow['first dispose'] || normalizedRow['dispose 1'] || normalizedRow['disposition'] || normalizedRow['dispose'] || ''
+            ).trim();
+
+            // SECOND DISPOSE column extraction
+            const secondDispose = String(
+              normalizedRow['second dispose'] || normalizedRow['dispose 2'] || ''
             ).trim();
 
             const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
@@ -657,6 +667,7 @@ const Dashboard = () => {
               duration,
               talktime,
               dispose,
+              second_dispose: secondDispose,
               remarks,
               customer_name: customerName,
               audio_url: recordingPath || ''
@@ -938,6 +949,15 @@ const Dashboard = () => {
       minWidth: 120,
       editable: () => showEditButton,
       hide: !columnVisibility.dispose
+    },
+    { 
+      field: "secondDispose", 
+      headerName: "Second Dispose", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 140,
+      editable: () => showEditButton,
+      hide: !columnVisibility.secondDispose
     },
     { 
       field: "agentEmail", 
@@ -1699,6 +1719,10 @@ const Dashboard = () => {
                 <span className="info-value">{viewingCall.dispose || 'N/A'}</span>
               </div>
               <div className="info-item">
+                <span className="info-label">Second Dispose</span>
+                <span className="info-value">{viewingCall.secondDispose || 'N/A'}</span>
+              </div>
+              <div className="info-item">
                 <span className="info-label">Date & Time</span>
                 <span className="info-value">{viewingCall.date ? new Date(viewingCall.date).toLocaleString() : 'N/A'}</span>
               </div>
@@ -1801,6 +1825,16 @@ const Dashboard = () => {
                   value={editFormData.dispose}
                   onChange={(e) => setEditFormData({...editFormData, dispose: e.target.value})}
                   placeholder="e.g. Completed"
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Second Dispose</label>
+                <input 
+                  type="text" 
+                  value={editFormData.secondDispose}
+                  onChange={(e) => setEditFormData({...editFormData, secondDispose: e.target.value})}
+                  placeholder="e.g. Busy"
                   className="modal-form-input"
                 />
               </div>

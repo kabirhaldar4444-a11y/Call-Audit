@@ -89,6 +89,7 @@ const mapCallToFrontend = (call) => {
     duration: formatExcelDuration(call.duration),
     talktime: formatExcelDuration(call.talktime),
     dispose: call.dispose,
+    secondDispose: call.second_dispose || call.secondDispose,
     remarks: call.remarks,
     audioUrl: call.audio_url,
     audioFilename: call.audio_filename,
@@ -404,15 +405,14 @@ const uploadCallData = async (req, res) => {
         const talktimeVal = normalizedRow['talktime'] || normalizedRow['talk time'] || '';
         const talktime = formatExcelDuration(talktimeVal);
 
-        // Smart dispose: handle duplicate DISPOSE columns (XLSX renames 2nd to dispose_1 -> "dispose 1")
-        let rawDispose = normalizedRow['dispose'] || '';
-        const dispose1 = normalizedRow['dispose 1'] || '';
-        const firstDispose = normalizedRow['first dispose'] || '';
-        const isTimeVal = /^\d{1,2}:\d{2}(:\d{2})?$/.test(String(rawDispose).trim());
+        // FIRST DISPOSE is the actual dispose text column in the Excel sheet
         const dispose = String(
-          isTimeVal
-            ? (dispose1 || firstDispose || normalizedRow['disposition'] || rawDispose)
-            : (rawDispose || normalizedRow['disposition'] || '')
+          normalizedRow['first dispose'] || normalizedRow['dispose 1'] || normalizedRow['disposition'] || normalizedRow['dispose'] || ''
+        ).trim();
+
+        // SECOND DISPOSE column extraction
+        const secondDispose = String(
+          normalizedRow['second dispose'] || normalizedRow['dispose 2'] || ''
         ).trim();
         
         const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
@@ -429,6 +429,7 @@ const uploadCallData = async (req, res) => {
           duration,
           talktime,
           dispose,
+          second_dispose: secondDispose,
           remarks,
           customer_name: customerName,
           uploaded_by: req.userId,
@@ -794,13 +795,13 @@ const updateCallStatus = async (req, res) => {
 const updateCall = async (req, res) => {
   try {
     const { id } = req.params;
-    const { agentName, process: callProcess, status, duration, talktime, dispose, auditorName } = req.body;
+    const { agentName, process: callProcess, status, duration, talktime, dispose, secondDispose, auditorName } = req.body;
     
     // Role-based validation: normal persons can only update status and auditorName
     const isAdmin = req.userRole === 'admin' || req.userRole === 'superadmin';
     if (!isAdmin) {
-      if (agentName !== undefined || callProcess !== undefined || duration !== undefined || talktime !== undefined || dispose !== undefined) {
-        return res.status(403).json({ status: 'error', message: 'You do not have permission to edit agent details, process, duration, talktime, or dispose.' });
+      if (agentName !== undefined || callProcess !== undefined || duration !== undefined || talktime !== undefined || dispose !== undefined || secondDispose !== undefined) {
+        return res.status(403).json({ status: 'error', message: 'You do not have permission to edit agent details, process, duration, talktime, dispose, or second dispose.' });
       }
     }
     
@@ -816,6 +817,7 @@ const updateCall = async (req, res) => {
           duration: duration !== undefined ? formatExcelDuration(duration) : callsLocal[callIndex].duration,
           talktime: talktime !== undefined ? formatExcelDuration(talktime) : callsLocal[callIndex].talktime,
           dispose: dispose !== undefined ? dispose : callsLocal[callIndex].dispose,
+          secondDispose: secondDispose !== undefined ? secondDispose : callsLocal[callIndex].secondDispose,
           auditorName: auditorName !== undefined ? auditorName : callsLocal[callIndex].auditorName,
           updatedAt: new Date().toISOString()
         };
@@ -832,6 +834,7 @@ const updateCall = async (req, res) => {
       if (duration !== undefined) updateData.duration = formatExcelDuration(duration);
       if (talktime !== undefined) updateData.talktime = formatExcelDuration(talktime);
       if (dispose !== undefined) updateData.dispose = dispose;
+      if (secondDispose !== undefined) updateData.second_dispose = secondDispose;
       if (auditorName !== undefined) updateData.auditor_name = auditorName;
       
       let resultCall = null;
@@ -1207,15 +1210,14 @@ const parseExcel = async (req, res) => {
         const talktimeVal = normalizedRow['talktime'] || normalizedRow['talk time'] || '';
         const talktime = formatExcelDuration(talktimeVal);
 
-        // Smart dispose: handle duplicate DISPOSE columns (XLSX renames 2nd to dispose_1 -> "dispose 1")
-        let rawDisposeP = normalizedRow['dispose'] || '';
-        const dispose1P = normalizedRow['dispose 1'] || '';
-        const firstDisposeP = normalizedRow['first dispose'] || '';
-        const isTimeValP = /^\d{1,2}:\d{2}(:\d{2})?$/.test(String(rawDisposeP).trim());
+        // FIRST DISPOSE is the actual dispose text column in the Excel sheet
         const dispose = String(
-          isTimeValP
-            ? (dispose1P || firstDisposeP || normalizedRow['disposition'] || rawDisposeP)
-            : (rawDisposeP || normalizedRow['disposition'] || '')
+          normalizedRow['first dispose'] || normalizedRow['dispose 1'] || normalizedRow['disposition'] || normalizedRow['dispose'] || ''
+        ).trim();
+
+        // SECOND DISPOSE column extraction
+        const secondDispose = String(
+          normalizedRow['second dispose'] || normalizedRow['dispose 2'] || ''
         ).trim();
         
         const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
@@ -1232,6 +1234,7 @@ const parseExcel = async (req, res) => {
           duration,
           talktime,
           dispose,
+          second_dispose: secondDispose,
           remarks,
           customer_name: customerName,
           audio_url: recordingPath || ''
@@ -1287,6 +1290,7 @@ const uploadChunk = async (req, res) => {
             duration: item.duration,
             talktime: item.talktime,
             dispose: item.dispose,
+            secondDispose: item.second_dispose,
             remarks: item.remarks,
             customerName: item.customer_name,
             audioUrl: item.audio_url || '',
@@ -1328,6 +1332,7 @@ const uploadChunk = async (req, res) => {
           duration: item.duration,
           talktime: item.talktime,
           dispose: item.dispose,
+          second_dispose: item.second_dispose,
           remarks: item.remarks,
           customer_name: item.customer_name,
           audio_url: item.audio_url || '',
