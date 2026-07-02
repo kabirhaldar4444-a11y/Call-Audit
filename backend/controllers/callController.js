@@ -47,15 +47,30 @@ const parseExcelDate = (dateVal) => {
 
 const formatExcelDuration = (val) => {
   if (!val) return '00:00';
+  
+  let dateObj = null;
   if (val instanceof Date) {
-    if (val.getFullYear() === 1899 || val.getFullYear() === 1900) {
-      const hh = String(val.getHours()).padStart(2, '0');
-      const mm = String(val.getMinutes()).padStart(2, '0');
-      const ss = String(val.getSeconds()).padStart(2, '0');
-      return hh === '00' ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+    dateObj = val;
+  } else if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+      return trimmed;
     }
-    return val.toLocaleTimeString();
+    if (trimmed.includes('1899') || trimmed.includes('1900') || trimmed.includes('Dec 30') || trimmed.includes('Dec 31')) {
+      const parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime())) {
+        dateObj = parsed;
+      }
+    }
   }
+
+  if (dateObj) {
+    const hh = String(dateObj.getHours()).padStart(2, '0');
+    const mm = String(dateObj.getMinutes()).padStart(2, '0');
+    const ss = String(dateObj.getSeconds()).padStart(2, '0');
+    return hh === '00' ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+  }
+
   return String(val).trim();
 };
 
@@ -71,8 +86,8 @@ const mapCallToFrontend = (call) => {
     process: call.process,
     date: call.date,
     phoneNumber: call.phone_number,
-    duration: call.duration,
-    talktime: call.talktime,
+    duration: formatExcelDuration(call.duration),
+    talktime: formatExcelDuration(call.talktime),
     dispose: call.dispose,
     remarks: call.remarks,
     audioUrl: call.audio_url,
@@ -791,8 +806,8 @@ const updateCall = async (req, res) => {
           agentName: agentName !== undefined ? agentName : callsLocal[callIndex].agentName,
           process: callProcess !== undefined ? callProcess : callsLocal[callIndex].process,
           status: status !== undefined ? status : callsLocal[callIndex].status,
-          duration: duration !== undefined ? duration : callsLocal[callIndex].duration,
-          talktime: talktime !== undefined ? talktime : callsLocal[callIndex].talktime,
+          duration: duration !== undefined ? formatExcelDuration(duration) : callsLocal[callIndex].duration,
+          talktime: talktime !== undefined ? formatExcelDuration(talktime) : callsLocal[callIndex].talktime,
           dispose: dispose !== undefined ? dispose : callsLocal[callIndex].dispose,
           auditorName: auditorName !== undefined ? auditorName : callsLocal[callIndex].auditorName,
           updatedAt: new Date().toISOString()
@@ -807,8 +822,8 @@ const updateCall = async (req, res) => {
       if (agentName !== undefined) updateData.agent_name = agentName;
       if (callProcess !== undefined) updateData.process = callProcess;
       if (status !== undefined) updateData.status = status;
-      if (duration !== undefined) updateData.duration = duration;
-      if (talktime !== undefined) updateData.talktime = talktime;
+      if (duration !== undefined) updateData.duration = formatExcelDuration(duration);
+      if (talktime !== undefined) updateData.talktime = formatExcelDuration(talktime);
       if (dispose !== undefined) updateData.dispose = dispose;
       if (auditorName !== undefined) updateData.auditor_name = auditorName;
       
@@ -1256,6 +1271,8 @@ const uploadChunk = async (req, res) => {
             date: item.date,
             phoneNumber: item.phone_number,
             duration: item.duration,
+            talktime: item.talktime,
+            dispose: item.dispose,
             remarks: item.remarks,
             customerName: item.customer_name,
             audioUrl: item.audio_url || '',
@@ -1295,6 +1312,8 @@ const uploadChunk = async (req, res) => {
           date: item.date,
           phone_number: item.phone_number,
           duration: item.duration,
+          talktime: item.talktime,
+          dispose: item.dispose,
           remarks: item.remarks,
           customer_name: item.customer_name,
           audio_url: item.audio_url || '',

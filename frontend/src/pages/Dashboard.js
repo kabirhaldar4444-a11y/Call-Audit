@@ -502,15 +502,30 @@ const Dashboard = () => {
   }, [chunkUploadProgress]);
   const formatExcelDuration = (val) => {
     if (!val) return '00:00';
+    
+    let dateObj = null;
     if (val instanceof Date) {
-      if (val.getFullYear() === 1899 || val.getFullYear() === 1900) {
-        const hh = String(val.getHours()).padStart(2, '0');
-        const mm = String(val.getMinutes()).padStart(2, '0');
-        const ss = String(val.getSeconds()).padStart(2, '0');
-        return hh === '00' ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+      dateObj = val;
+    } else if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+        return trimmed;
       }
-      return val.toLocaleTimeString();
+      if (trimmed.includes('1899') || trimmed.includes('1900') || trimmed.includes('Dec 30') || trimmed.includes('Dec 31')) {
+        const parsed = new Date(trimmed);
+        if (!isNaN(parsed.getTime())) {
+          dateObj = parsed;
+        }
+      }
     }
+
+    if (dateObj) {
+      const hh = String(dateObj.getHours()).padStart(2, '0');
+      const mm = String(dateObj.getMinutes()).padStart(2, '0');
+      const ss = String(dateObj.getSeconds()).padStart(2, '0');
+      return hh === '00' ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+    }
+
     return String(val).trim();
   };
 
