@@ -15,6 +15,7 @@ import {
   FiX,
   FiCheck
 } from 'react-icons/fi';
+import * as XLSX from 'xlsx';
 import './Dashboard.css';
 
 // Custom No Rows (Empty State) Component
@@ -472,62 +473,179 @@ const Dashboard = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [chunkUploadProgress]);
+  const parseExcelDate = (dateVal) => {
+    if (!dateVal) return new Date();
+    if (dateVal instanceof Date) return dateVal;
+    
+    if (typeof dateVal === 'number') {
+      return new Date((dateVal - 25569) * 86400 * 1000);
+    }
+    
+    if (typeof dateVal === 'string') {
+      const trimmed = dateVal.trim();
+      if (!trimmed || trimmed === '--') return new Date();
+      
+      // Check if it's a number string (Excel serial date represented as a string)
+      const num = parseFloat(trimmed);
+      if (!isNaN(num) && String(num) === trimmed) {
+        return new Date((num - 25569) * 86400 * 1000);
+      }
+      
+      // Try standard parsing
+      const standardParsed = new Date(trimmed);
+      if (!isNaN(standardParsed.getTime())) return standardParsed;
+      
+      // Parse DD-MM-YYYY or DD/MM/YYYY format manually (common in India / Excel exports)
+      const dmyRegex = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/;
+      const match = trimmed.match(dmyRegex);
+      if (match) {
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1; // 0-indexed month
+        const year = parseInt(match[3], 10);
+        const hour = parseInt(match[4] || '0', 10);
+        const minute = parseInt(match[5] || '0', 10);
+        const second = parseInt(match[6] || '0', 10);
+        
+        return new Date(year, month, day, hour, minute, second);
+      }
+    }
+    
+    return new Date();
+  };
 
   const handleDataUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     setUploading(true);
-    setUploadStatus({ type: 'info', message: 'Parsing spreadsheet file...' });
+    setUploadStatus({ type: 'info', message: 'Reading spreadsheet file in browser...' });
 
-    try {
-      const response = await api.post('/calls/parse-excel', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        setUploadStatus({ type: 'info', message: 'Parsing spreadsheet data...' });
+        const arrayBuffer = evt.target.result;
+        const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(sheet);
 
-      const { total, rows } = response.data.data;
-      
-      if (!rows || rows.length === 0) {
-        setUploadStatus({ type: 'warning', message: 'No records found in the uploaded file.' });
+        const parsedRows = [];
+        const seenIdsInBatch = new Set();
+
+        for (const row of data) {
+          try {
+            const normalizedRow = {};
+            Object.keys(row).forEach(key => {
+              const normalizedKey = key.toLowerCase().trim().replace(/_/g, ' ').replace(/\s+/g, ' ');
+              normalizedRow[normalizedKey] = row[key];
+            });
+
+            const rawCallId = 
+              normalizedRow['call id'] || 
+              normalizedRow['callid'] || 
+              normalizedRow['id'] || 
+              normalizedRow['s no'] || 
+              normalizedRow['serial number'] || 
+              normalizedRow['lead id'] ||
+              Object.values(row)[0];
+
+            let callId = String(rawCallId || '').trim();
+
+            if (!callId) {
+              callId = `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            }
+
+            let uniqueCallId = callId;
+            let counter = 1;
+            while (seenIdsInBatch.has(uniqueCallId)) {
+              uniqueCallId = `${callId}_${counter}`;
+              counter++;
+            }
+            seenIdsInBatch.add(uniqueCallId);
+
+            const agentName = String(normalizedRow['agent full name'] || normalizedRow['agent name'] || normalizedRow['agent'] || normalizedRow['agentname'] || normalizedRow['staff'] || 'Unknown Agent').trim();
+            const agentEmail = String(normalizedRow['agent email'] || normalizedRow['email'] || normalizedRow['agentemail'] || '').toLowerCase().trim();
+            const processName = String(normalizedRow['process'] || normalizedRow['dept'] || normalizedRow['department'] || 'General').trim();
+            
+            let dateVal = normalizedRow['date'] || normalizedRow['date time'] || normalizedRow['date & time'] || normalizedRow['timestamp'] || normalizedRow['time'] || normalizedRow['date-time'];
+            let finalDate = parseExcelDate(dateVal);
+
+            const phoneNumber = String(normalizedRow['phone number'] || normalizedRow['phone'] || normalizedRow['customer number'] || normalizedRow['mobile'] || '').trim();
+            const duration = String(normalizedRow['talktime'] || normalizedRow['talk time'] || normalizedRow['duration'] || normalizedRow['call duration'] || normalizedRow['call time'] || normalizedRow['length'] || '').trim();
+            const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
+            const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || '').trim();
+            const recordingPath = String(normalizedRow['recording path'] || normalizedRow['audio link'] || normalizedRow['audio url'] || normalizedRow['recording link'] || '').trim();
+
+            const insertData = {
+              call_id: uniqueCallId,
+              agent_name: agentName,
+              agent_email: agentEmail,
+              process: processName,
+              date: finalDate.toISOString(),
+              phone_number: phoneNumber,
+              duration,
+              remarks,
+              customer_name: customerName,
+              audio_url: recordingPath || ''
+            };
+
+            parsedRows.push(insertData);
+          } catch (err) {
+            // Skip row parsing errors gracefully
+          }
+        }
+
+        if (parsedRows.length === 0) {
+          setUploadStatus({ type: 'warning', message: 'No records found in the uploaded file.' });
+          setUploading(false);
+          return;
+        }
+
+        setUploadStatus(null);
         setUploading(false);
-        return;
+        cancelUploadRef.current = false;
+
+        const initialProgress = {
+          total: parsedRows.length,
+          processed: 0,
+          success: 0,
+          skipped: 0,
+          failed: 0,
+          active: true,
+          errors: [],
+          fileName: file.name,
+          rows: parsedRows,
+          currentChunkIndex: 0
+        };
+
+        setChunkUploadProgress(initialProgress);
+        setIsChunkModalOpen(true);
+
+        // Start uploading chunks
+        setTimeout(() => {
+          startChunkUploadSequence(initialProgress);
+        }, 300);
+
+      } catch (err) {
+        console.error('Error parsing excel in browser:', err);
+        setUploading(false);
+        setUploadStatus({ type: 'error', message: err.message || 'Error parsing Excel file' });
+      } finally {
+        if (dataFilesInput.current) dataFilesInput.current.value = '';
       }
+    };
 
-      setUploadStatus(null);
+    reader.onerror = (err) => {
+      console.error('FileReader error:', err);
       setUploading(false);
-      cancelUploadRef.current = false;
-
-      const initialProgress = {
-        total,
-        processed: 0,
-        success: 0,
-        skipped: 0,
-        failed: 0,
-        active: true,
-        errors: [],
-        fileName: file.name,
-        rows,
-        currentChunkIndex: 0
-      };
-
-      setChunkUploadProgress(initialProgress);
-      setIsChunkModalOpen(true);
-
-      // Start uploading chunks
-      setTimeout(() => {
-        startChunkUploadSequence(initialProgress);
-      }, 300);
-
-    } catch (error) {
-      setUploading(false);
-      setUploadStatus({ type: 'error', message: error.response?.data?.message || 'Error parsing Excel file' });
-    } finally {
+      setUploadStatus({ type: 'error', message: 'Error reading file from disk' });
       if (dataFilesInput.current) dataFilesInput.current.value = '';
-    }
+    };
+
+    reader.readAsArrayBuffer(file);
   };
+
 
   const startChunkUploadSequence = async (progressState) => {
     const chunkSize = 500;
