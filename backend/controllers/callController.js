@@ -188,20 +188,20 @@ const getAllCalls = async (req, res) => {
     if (req.query.status) query = query.eq('status', req.query.status);
     if (req.query.auditorName) query = query.eq('auditor_name', req.query.auditorName);
     
-    // Date range
+    // Date range — use IST offset (+05:30) for consistent Indian timezone filtering
     if (req.query.dateFrom) {
       let fromDateStr = req.query.dateFrom;
       if (fromDateStr.length === 10) {
-        const fromDate = new Date(fromDateStr + 'T00:00:00');
-        fromDateStr = fromDate.toISOString();
+        // Construct start-of-day in IST and convert to UTC ISO string
+        fromDateStr = new Date(fromDateStr + 'T00:00:00+05:30').toISOString();
       }
       query = query.gte('date', fromDateStr);
     }
     if (req.query.dateTo) {
       let toDateStr = req.query.dateTo;
       if (toDateStr.length === 10) {
-        const toDate = new Date(toDateStr + 'T23:59:59.999');
-        toDateStr = toDate.toISOString();
+        // Construct end-of-day in IST and convert to UTC ISO string
+        toDateStr = new Date(toDateStr + 'T23:59:59.999+05:30').toISOString();
       }
       query = query.lte('date', toDateStr);
     }
@@ -404,7 +404,16 @@ const uploadCallData = async (req, res) => {
         const talktimeVal = normalizedRow['talktime'] || normalizedRow['talk time'] || '';
         const talktime = formatExcelDuration(talktimeVal);
 
-        const dispose = String(normalizedRow['dispose'] || normalizedRow['disposition'] || '').trim();
+        // Smart dispose: handle duplicate DISPOSE columns (XLSX renames 2nd to dispose_1 -> "dispose 1")
+        let rawDispose = normalizedRow['dispose'] || '';
+        const dispose1 = normalizedRow['dispose 1'] || '';
+        const firstDispose = normalizedRow['first dispose'] || '';
+        const isTimeVal = /^\d{1,2}:\d{2}(:\d{2})?$/.test(String(rawDispose).trim());
+        const dispose = String(
+          isTimeVal
+            ? (dispose1 || firstDispose || normalizedRow['disposition'] || rawDispose)
+            : (rawDispose || normalizedRow['disposition'] || '')
+        ).trim();
         
         const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
         const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || '').trim();
@@ -526,11 +535,11 @@ const deleteCalls = async (req, res) => {
       if (dateFrom || dateTo) {
         let fromVal = dateFrom;
         if (fromVal && fromVal.length === 10) {
-          fromVal = new Date(fromVal + 'T00:00:00').toISOString();
+          fromVal = new Date(fromVal + 'T00:00:00+05:30').toISOString();
         }
         let toVal = dateTo;
         if (toVal && toVal.length === 10) {
-          toVal = new Date(toVal + 'T23:59:59.999').toISOString();
+          toVal = new Date(toVal + 'T23:59:59.999+05:30').toISOString();
         }
 
         const fromDate = fromVal ? new Date(fromVal) : null;
@@ -569,16 +578,14 @@ const deleteCalls = async (req, res) => {
       if (dateFrom) {
         let fromVal = dateFrom;
         if (fromVal.length === 10) {
-          const fromDate = new Date(fromVal + 'T00:00:00');
-          fromVal = fromDate.toISOString();
+          fromVal = new Date(fromVal + 'T00:00:00+05:30').toISOString();
         }
         query = query.gte('date', fromVal);
       }
       if (dateTo) {
         let toVal = dateTo;
         if (toVal.length === 10) {
-          const toDate = new Date(toVal + 'T23:59:59.999');
-          toVal = toDate.toISOString();
+          toVal = new Date(toVal + 'T23:59:59.999+05:30').toISOString();
         }
         query = query.lte('date', toVal);
       }
@@ -875,12 +882,12 @@ const getCallsByDateRange = async (req, res) => {
     let start;
     let end;
     if (startDate.length === 10) {
-      start = new Date(startDate + 'T00:00:00');
+      start = new Date(startDate + 'T00:00:00+05:30');
     } else {
       start = new Date(startDate);
     }
     if (endDate.length === 10) {
-      end = new Date(endDate + 'T23:59:59.999');
+      end = new Date(endDate + 'T23:59:59.999+05:30');
     } else {
       end = new Date(endDate);
     }
@@ -1104,16 +1111,14 @@ const getAuditorStats = async (req, res) => {
     if (dateFrom) {
       let fromDateStr = dateFrom;
       if (fromDateStr.length === 10) {
-        const fromDate = new Date(fromDateStr + 'T00:00:00');
-        fromDateStr = fromDate.toISOString();
+        fromDateStr = new Date(fromDateStr + 'T00:00:00+05:30').toISOString();
       }
       query = query.gte('date', fromDateStr);
     }
     if (dateTo) {
       let toDateStr = dateTo;
       if (toDateStr.length === 10) {
-        const toDate = new Date(toDateStr + 'T23:59:59.999');
-        toDateStr = toDate.toISOString();
+        toDateStr = new Date(toDateStr + 'T23:59:59.999+05:30').toISOString();
       }
       query = query.lte('date', toDateStr);
     }
@@ -1202,7 +1207,16 @@ const parseExcel = async (req, res) => {
         const talktimeVal = normalizedRow['talktime'] || normalizedRow['talk time'] || '';
         const talktime = formatExcelDuration(talktimeVal);
 
-        const dispose = String(normalizedRow['dispose'] || normalizedRow['disposition'] || '').trim();
+        // Smart dispose: handle duplicate DISPOSE columns (XLSX renames 2nd to dispose_1 -> "dispose 1")
+        let rawDisposeP = normalizedRow['dispose'] || '';
+        const dispose1P = normalizedRow['dispose 1'] || '';
+        const firstDisposeP = normalizedRow['first dispose'] || '';
+        const isTimeValP = /^\d{1,2}:\d{2}(:\d{2})?$/.test(String(rawDisposeP).trim());
+        const dispose = String(
+          isTimeValP
+            ? (dispose1P || firstDisposeP || normalizedRow['disposition'] || rawDisposeP)
+            : (rawDisposeP || normalizedRow['disposition'] || '')
+        ).trim();
         
         const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
         const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || '').trim();

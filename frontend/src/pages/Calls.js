@@ -233,15 +233,9 @@ const Calls = () => {
   const fetchCalls = async () => {
     try {
       setLoading(true);
-      let dateFromParam = appliedFilters.dateFrom;
-      let dateToParam = appliedFilters.dateTo;
-
-      if (dateFromParam && dateFromParam.length === 10) {
-        dateFromParam = new Date(dateFromParam + 'T00:00:00').toISOString();
-      }
-      if (dateToParam && dateToParam.length === 10) {
-        dateToParam = new Date(dateToParam + 'T23:59:59.999').toISOString();
-      }
+      // Send raw YYYY-MM-DD strings; the backend handles timezone conversion
+      const dateFromParam = appliedFilters.dateFrom;
+      const dateToParam = appliedFilters.dateTo;
 
       const queryParams = new URLSearchParams({
         page,

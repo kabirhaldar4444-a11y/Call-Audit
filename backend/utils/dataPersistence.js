@@ -112,7 +112,7 @@ function getCallsFromLocalFile(filters = {}) {
     if (filters.dateFrom) {
       let fromDate;
       if (filters.dateFrom.length === 10) {
-        fromDate = new Date(filters.dateFrom + 'T00:00:00');
+        fromDate = new Date(filters.dateFrom + 'T00:00:00+05:30');
       } else {
         fromDate = new Date(filters.dateFrom);
       }
@@ -122,7 +122,7 @@ function getCallsFromLocalFile(filters = {}) {
     if (filters.dateTo) {
       let toDate;
       if (filters.dateTo.length === 10) {
-        toDate = new Date(filters.dateTo + 'T23:59:59.999');
+        toDate = new Date(filters.dateTo + 'T23:59:59.999+05:30');
       } else {
         toDate = new Date(filters.dateTo);
       }

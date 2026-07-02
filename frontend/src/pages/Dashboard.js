@@ -251,15 +251,9 @@ const Dashboard = () => {
     isFetching.current = true;
     
     try {
-      let dateFromParam = appliedFilters.dateFrom;
-      let dateToParam = appliedFilters.dateTo;
-
-      if (dateFromParam && dateFromParam.length === 10) {
-        dateFromParam = new Date(dateFromParam + 'T00:00:00').toISOString();
-      }
-      if (dateToParam && dateToParam.length === 10) {
-        dateToParam = new Date(dateToParam + 'T23:59:59.999').toISOString();
-      }
+      // Send raw YYYY-MM-DD strings; the backend handles timezone conversion
+      const dateFromParam = appliedFilters.dateFrom;
+      const dateToParam = appliedFilters.dateTo;
 
       const queryParams = new URLSearchParams({
         page,
@@ -635,7 +629,19 @@ const Dashboard = () => {
             const talktimeVal = normalizedRow['talktime'] || normalizedRow['talk time'] || '';
             const talktime = formatExcelDuration(talktimeVal);
 
-            const dispose = String(normalizedRow['dispose'] || normalizedRow['disposition'] || '').trim();
+            // Smart dispose extraction: Excel sheets may have duplicate DISPOSE columns.
+            // XLSX renames the second to "DISPOSE_1" (normalized: "dispose 1").
+            // The first DISPOSE often contains time data, the second has the actual text.
+            let rawDispose = normalizedRow['dispose'] || '';
+            const dispose1 = normalizedRow['dispose 1'] || '';
+            const firstDispose = normalizedRow['first dispose'] || '';
+            // If the primary dispose looks like a time value (e.g. 0:00:10), use the text alternative
+            const isTimeValue = /^\d{1,2}:\d{2}(:\d{2})?$/.test(String(rawDispose).trim());
+            const dispose = String(
+              isTimeValue
+                ? (dispose1 || firstDispose || normalizedRow['disposition'] || rawDispose)
+                : (rawDispose || normalizedRow['disposition'] || '')
+            ).trim();
 
             const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
             const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || '').trim();
