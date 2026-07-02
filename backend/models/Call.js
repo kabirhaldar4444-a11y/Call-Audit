@@ -34,6 +34,12 @@ const callSchema = new mongoose.Schema(
     duration: {
       type: String,
     },
+    talktime: {
+      type: String,
+    },
+    dispose: {
+      type: String,
+    },
     remarks: {
       type: String,
     },

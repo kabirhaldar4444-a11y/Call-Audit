@@ -132,6 +132,7 @@ const Calls = () => {
   // Filter states
   const [filters, setFilters] = useState({
     search: '',
+    searchColumn: 'all',
     process: '',
     status: '',
     dateFrom: yesterdayStr,
@@ -158,6 +159,8 @@ const Calls = () => {
     process: '',
     status: '',
     duration: '',
+    talktime: '',
+    dispose: '',
     auditorName: ''
   });
   const [deletingCall, setDeletingCall] = useState(null);
@@ -178,6 +181,8 @@ const Calls = () => {
     process: true,
     date: true,
     duration: true,
+    talktime: true,
+    dispose: true,
     agentEmail: true,
     auditorName: true,
     status: true,
@@ -193,6 +198,8 @@ const Calls = () => {
     { id: 'process', name: 'Process' },
     { id: 'date', name: 'Date & Time' },
     { id: 'duration', name: 'Duration' },
+    { id: 'talktime', name: 'Talktime' },
+    { id: 'dispose', name: 'Dispose' },
     { id: 'agentEmail', name: 'Agent Email' },
     { id: 'auditorName', name: 'Auditor Name' },
     { id: 'status', name: 'Status' },
@@ -218,12 +225,20 @@ const Calls = () => {
       const queryParams = new URLSearchParams({
         page,
         limit: pageSize || 25,
-        search: appliedFilters.search,
         process: appliedFilters.process,
         status: appliedFilters.status,
         dateFrom: appliedFilters.dateFrom,
         dateTo: appliedFilters.dateTo
       });
+
+      if (appliedFilters.search) {
+        if (appliedFilters.searchColumn === 'all') {
+          queryParams.append('search', appliedFilters.search);
+        } else {
+          queryParams.append(appliedFilters.searchColumn, appliedFilters.search);
+        }
+      }
+
       const response = await api.get(`/calls?${queryParams.toString()}`);
       setCalls(response.data.data || []);
       setPagination(response.data.pagination || { total: 0, totalPages: 1, limit: pageSize || 25 });
@@ -252,6 +267,7 @@ const Calls = () => {
   const resetFilters = () => {
     const defaultFilters = {
       search: '',
+      searchColumn: 'all',
       process: '',
       status: '',
       dateFrom: yesterdayStr,
@@ -340,6 +356,8 @@ const Calls = () => {
       process: call.process || '',
       status: call.status || 'pending',
       duration: call.duration || '',
+      talktime: call.talktime || '',
+      dispose: call.dispose || '',
       auditorName: call.auditorName || ''
     });
   };
@@ -356,6 +374,8 @@ const Calls = () => {
         process: editFormData.process,
         status: editFormData.status,
         duration: editFormData.duration,
+        talktime: editFormData.talktime,
+        dispose: editFormData.dispose,
         auditorName: editFormData.auditorName
       });
       
@@ -513,6 +533,24 @@ const Calls = () => {
       maxWidth: 120,
       editable: () => showEditButton,
       hide: !columnVisibility.duration
+    },
+    { 
+      field: "talktime", 
+      headerName: "Talktime", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 100,
+      editable: () => showEditButton,
+      hide: !columnVisibility.talktime
+    },
+    { 
+      field: "dispose", 
+      headerName: "Dispose", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 120,
+      editable: () => showEditButton,
+      hide: !columnVisibility.dispose
     },
     { 
       field: "agentEmail", 
@@ -719,6 +757,34 @@ const Calls = () => {
         {/* Modern Filter & Search Toolbar */}
         <div className="calls-toolbar">
           <div className="toolbar-left-group">
+            <select 
+              value={filters.searchColumn} 
+              onChange={(e) => setFilters(prev => ({ ...prev, searchColumn: e.target.value }))}
+              className="toolbar-select search-column-select"
+              title="Select column to search by"
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                color: 'var(--text-primary)',
+                padding: '10px 16px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                outline: 'none',
+                maxWidth: '150px'
+              }}
+            >
+              <option value="all" style={{ background: '#1e1b4b', color: 'white' }}>🔍 All Columns</option>
+              <option value="callId" style={{ background: '#1e1b4b', color: 'white' }}>Call ID</option>
+              <option value="agentName" style={{ background: '#1e1b4b', color: 'white' }}>Agent Name</option>
+              <option value="process" style={{ background: '#1e1b4b', color: 'white' }}>Process</option>
+              <option value="agentEmail" style={{ background: '#1e1b4b', color: 'white' }}>Agent Email</option>
+              <option value="auditorName" style={{ background: '#1e1b4b', color: 'white' }}>Auditor Name</option>
+              <option value="duration" style={{ background: '#1e1b4b', color: 'white' }}>Duration</option>
+              <option value="talktime" style={{ background: '#1e1b4b', color: 'white' }}>Talktime</option>
+              <option value="dispose" style={{ background: '#1e1b4b', color: 'white' }}>Dispose</option>
+            </select>
+
             <div className="search-box">
               <FiSearch className="search-icon" />
               <input 
@@ -1040,6 +1106,14 @@ const Calls = () => {
                 <span className="info-value font-highlight">{viewingCall.duration || 'N/A'}</span>
               </div>
               <div className="info-item">
+                <span className="info-label">Talktime</span>
+                <span className="info-value font-highlight">{viewingCall.talktime || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Dispose</span>
+                <span className="info-value">{viewingCall.dispose || 'N/A'}</span>
+              </div>
+              <div className="info-item">
                 <span className="info-label">Date & Time</span>
                 <span className="info-value">{viewingCall.date ? new Date(viewingCall.date).toLocaleString() : 'N/A'}</span>
               </div>
@@ -1122,6 +1196,26 @@ const Calls = () => {
                   onChange={(e) => setEditFormData({...editFormData, duration: e.target.value})}
                   required
                   placeholder="e.g. 05:23"
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Talktime</label>
+                <input 
+                  type="text" 
+                  value={editFormData.talktime}
+                  onChange={(e) => setEditFormData({...editFormData, talktime: e.target.value})}
+                  placeholder="e.g. 04:12"
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Dispose</label>
+                <input 
+                  type="text" 
+                  value={editFormData.dispose}
+                  onChange={(e) => setEditFormData({...editFormData, dispose: e.target.value})}
+                  placeholder="e.g. Completed"
                   className="modal-form-input"
                 />
               </div>

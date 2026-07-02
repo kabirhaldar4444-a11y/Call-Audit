@@ -149,6 +149,7 @@ const Dashboard = () => {
   // Filter states
   const [filters, setFilters] = useState({
     search: '',
+    searchColumn: 'all',
     process: '',
     status: '',
     dateFrom: yesterdayStr,
@@ -194,6 +195,8 @@ const Dashboard = () => {
     process: true,
     date: true,
     duration: true,
+    talktime: true,
+    dispose: true,
     agentEmail: true,
     auditorName: true,
     status: true,
@@ -207,6 +210,8 @@ const Dashboard = () => {
     { id: 'process', name: 'Process' },
     { id: 'date', name: 'Date & Time' },
     { id: 'duration', name: 'Duration' },
+    { id: 'talktime', name: 'Talktime' },
+    { id: 'dispose', name: 'Dispose' },
     { id: 'agentEmail', name: 'Agent Email' },
     { id: 'auditorName', name: 'Auditor Name' },
     { id: 'status', name: 'Status' },
@@ -238,12 +243,19 @@ const Dashboard = () => {
       const queryParams = new URLSearchParams({
         page,
         limit: pageSize || 25,
-        search: appliedFilters.search,
         process: appliedFilters.process,
         status: appliedFilters.status,
         dateFrom: appliedFilters.dateFrom,
         dateTo: appliedFilters.dateTo
       });
+
+      if (appliedFilters.search) {
+        if (appliedFilters.searchColumn === 'all') {
+          queryParams.append('search', appliedFilters.search);
+        } else {
+          queryParams.append(appliedFilters.searchColumn, appliedFilters.search);
+        }
+      }
 
       const [statsRes, callsRes] = await Promise.all([
         api.get('/calls/stats'),
@@ -279,6 +291,7 @@ const Dashboard = () => {
   const resetFilters = () => {
     const defaultFilters = {
       search: '',
+      searchColumn: 'all',
       process: '',
       status: '',
       dateFrom: yesterdayStr,
@@ -473,6 +486,20 @@ const Dashboard = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [chunkUploadProgress]);
+  const formatExcelDuration = (val) => {
+    if (!val) return '00:00';
+    if (val instanceof Date) {
+      if (val.getFullYear() === 1899 || val.getFullYear() === 1900) {
+        const hh = String(val.getHours()).padStart(2, '0');
+        const mm = String(val.getMinutes()).padStart(2, '0');
+        const ss = String(val.getSeconds()).padStart(2, '0');
+        return hh === '00' ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+      }
+      return val.toLocaleTimeString();
+    }
+    return String(val).trim();
+  };
+
   const parseExcelDate = (dateVal) => {
     if (!dateVal) return new Date();
     if (dateVal instanceof Date) return dateVal;
@@ -572,7 +599,15 @@ const Dashboard = () => {
             let finalDate = parseExcelDate(dateVal);
 
             const phoneNumber = String(normalizedRow['phone number'] || normalizedRow['phone'] || normalizedRow['customer number'] || normalizedRow['mobile'] || '').trim();
-            const duration = String(normalizedRow['talktime'] || normalizedRow['talk time'] || normalizedRow['duration'] || normalizedRow['call duration'] || normalizedRow['call time'] || normalizedRow['length'] || '').trim();
+            
+            const durationVal = normalizedRow['duration'] || normalizedRow['call duration'] || normalizedRow['length'] || '';
+            const duration = formatExcelDuration(durationVal);
+
+            const talktimeVal = normalizedRow['talktime'] || normalizedRow['talk time'] || '';
+            const talktime = formatExcelDuration(talktimeVal);
+
+            const dispose = String(normalizedRow['dispose'] || normalizedRow['disposition'] || '').trim();
+
             const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
             const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || '').trim();
             const recordingPath = String(normalizedRow['recording path'] || normalizedRow['audio link'] || normalizedRow['audio url'] || normalizedRow['recording link'] || '').trim();
@@ -585,6 +620,8 @@ const Dashboard = () => {
               date: finalDate.toISOString(),
               phone_number: phoneNumber,
               duration,
+              talktime,
+              dispose,
               remarks,
               customer_name: customerName,
               audio_url: recordingPath || ''
@@ -848,6 +885,24 @@ const Dashboard = () => {
       maxWidth: 120,
       editable: () => showEditButton,
       hide: !columnVisibility.duration
+    },
+    { 
+      field: "talktime", 
+      headerName: "Talktime", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 100,
+      editable: () => showEditButton,
+      hide: !columnVisibility.talktime
+    },
+    { 
+      field: "dispose", 
+      headerName: "Dispose", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 120,
+      editable: () => showEditButton,
+      hide: !columnVisibility.dispose
     },
     { 
       field: "agentEmail", 
@@ -1137,6 +1192,34 @@ const Dashboard = () => {
         {/* Modern Filter & Search Toolbar */}
         <div className="calls-toolbar">
           <div className="toolbar-left-group">
+            <select 
+              value={filters.searchColumn} 
+              onChange={(e) => setFilters(prev => ({ ...prev, searchColumn: e.target.value }))}
+              className="toolbar-select search-column-select"
+              title="Select column to search by"
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                color: 'var(--text-primary)',
+                padding: '10px 16px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                outline: 'none',
+                maxWidth: '150px'
+              }}
+            >
+              <option value="all" style={{ background: '#1e1b4b', color: 'white' }}>🔍 All Columns</option>
+              <option value="callId" style={{ background: '#1e1b4b', color: 'white' }}>Call ID</option>
+              <option value="agentName" style={{ background: '#1e1b4b', color: 'white' }}>Agent Name</option>
+              <option value="process" style={{ background: '#1e1b4b', color: 'white' }}>Process</option>
+              <option value="agentEmail" style={{ background: '#1e1b4b', color: 'white' }}>Agent Email</option>
+              <option value="auditorName" style={{ background: '#1e1b4b', color: 'white' }}>Auditor Name</option>
+              <option value="duration" style={{ background: '#1e1b4b', color: 'white' }}>Duration</option>
+              <option value="talktime" style={{ background: '#1e1b4b', color: 'white' }}>Talktime</option>
+              <option value="dispose" style={{ background: '#1e1b4b', color: 'white' }}>Dispose</option>
+            </select>
+
             <div className="search-box">
               <FiSearch className="search-icon" />
               <input 
@@ -1573,6 +1656,14 @@ const Dashboard = () => {
                 <span className="info-value font-highlight">{viewingCall.duration || 'N/A'}</span>
               </div>
               <div className="info-item">
+                <span className="info-label">Talktime</span>
+                <span className="info-value font-highlight">{viewingCall.talktime || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Dispose</span>
+                <span className="info-value">{viewingCall.dispose || 'N/A'}</span>
+              </div>
+              <div className="info-item">
                 <span className="info-label">Date & Time</span>
                 <span className="info-value">{viewingCall.date ? new Date(viewingCall.date).toLocaleString() : 'N/A'}</span>
               </div>
@@ -1655,6 +1746,26 @@ const Dashboard = () => {
                   onChange={(e) => setEditFormData({...editFormData, duration: e.target.value})}
                   required
                   placeholder="e.g. 05:23"
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Talktime</label>
+                <input 
+                  type="text" 
+                  value={editFormData.talktime}
+                  onChange={(e) => setEditFormData({...editFormData, talktime: e.target.value})}
+                  placeholder="e.g. 04:12"
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Dispose</label>
+                <input 
+                  type="text" 
+                  value={editFormData.dispose}
+                  onChange={(e) => setEditFormData({...editFormData, dispose: e.target.value})}
+                  placeholder="e.g. Completed"
                   className="modal-form-input"
                 />
               </div>

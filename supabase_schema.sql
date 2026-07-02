@@ -32,6 +32,8 @@ CREATE TABLE public.calls (
     date TIMESTAMP WITH TIME ZONE NOT NULL,
     phone_number TEXT,
     duration TEXT DEFAULT '00:00',
+    talktime TEXT DEFAULT '',
+    dispose TEXT DEFAULT '',
     remarks TEXT,
     audio_url TEXT DEFAULT '',
     audio_filename TEXT,

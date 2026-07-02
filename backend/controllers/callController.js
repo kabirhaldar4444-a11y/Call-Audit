@@ -45,6 +45,20 @@ const parseExcelDate = (dateVal) => {
   return new Date();
 };
 
+const formatExcelDuration = (val) => {
+  if (!val) return '00:00';
+  if (val instanceof Date) {
+    if (val.getFullYear() === 1899 || val.getFullYear() === 1900) {
+      const hh = String(val.getHours()).padStart(2, '0');
+      const mm = String(val.getMinutes()).padStart(2, '0');
+      const ss = String(val.getSeconds()).padStart(2, '0');
+      return hh === '00' ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+    }
+    return val.toLocaleTimeString();
+  }
+  return String(val).trim();
+};
+
 // Helper to map snake_case columns from Postgres to camelCase for the frontend
 const mapCallToFrontend = (call) => {
   if (!call) return null;
@@ -58,6 +72,8 @@ const mapCallToFrontend = (call) => {
     date: call.date,
     phoneNumber: call.phone_number,
     duration: call.duration,
+    talktime: call.talktime,
+    dispose: call.dispose,
     remarks: call.remarks,
     audioUrl: call.audio_url,
     audioFilename: call.audio_filename,
@@ -92,10 +108,27 @@ const getAllCalls = async (req, res) => {
           (c.agentName && c.agentName.toLowerCase().includes(searchVal)) ||
           (c.callId && c.callId.toLowerCase().includes(searchVal)) ||
           (c.process && c.process.toLowerCase().includes(searchVal)) ||
-          (c.agentEmail && c.agentEmail.toLowerCase().includes(searchVal))
+          (c.agentEmail && c.agentEmail.toLowerCase().includes(searchVal)) ||
+          (c.talktime && c.talktime.toLowerCase().includes(searchVal)) ||
+          (c.dispose && c.dispose.toLowerCase().includes(searchVal))
         );
       }
       
+      if (req.query.callId) {
+        callsLocal = callsLocal.filter(c => c.callId && c.callId.toLowerCase().includes(req.query.callId.toLowerCase()));
+      }
+      if (req.query.agentName) {
+        callsLocal = callsLocal.filter(c => c.agentName && c.agentName.toLowerCase().includes(req.query.agentName.toLowerCase()));
+      }
+      if (req.query.agentEmail) {
+        callsLocal = callsLocal.filter(c => c.agentEmail && c.agentEmail.toLowerCase().includes(req.query.agentEmail.toLowerCase()));
+      }
+      if (req.query.talktime) {
+        callsLocal = callsLocal.filter(c => c.talktime && c.talktime.toLowerCase().includes(req.query.talktime.toLowerCase()));
+      }
+      if (req.query.dispose) {
+        callsLocal = callsLocal.filter(c => c.dispose && c.dispose.toLowerCase().includes(req.query.dispose.toLowerCase()));
+      }
       if (req.query.status) {
         callsLocal = callsLocal.filter(c => c.status === req.query.status);
       }
@@ -127,10 +160,13 @@ const getAllCalls = async (req, res) => {
     // Global search or individual field searches
     if (req.query.search) {
       const searchVal = `%${req.query.search}%`;
-      query = query.or(`agent_name.ilike.${searchVal},call_id.ilike.${searchVal},process.ilike.${searchVal},agent_email.ilike.${searchVal}`);
+      query = query.or(`agent_name.ilike.${searchVal},call_id.ilike.${searchVal},process.ilike.${searchVal},agent_email.ilike.${searchVal},talktime.ilike.${searchVal},dispose.ilike.${searchVal}`);
     } else {
       if (req.query.callId) query = query.ilike('call_id', `%${req.query.callId}%`);
       if (req.query.agentName) query = query.ilike('agent_name', `%${req.query.agentName}%`);
+      if (req.query.agentEmail) query = query.ilike('agent_email', `%${req.query.agentEmail}%`);
+      if (req.query.talktime) query = query.ilike('talktime', `%${req.query.talktime}%`);
+      if (req.query.dispose) query = query.ilike('dispose', `%${req.query.dispose}%`);
     }
 
     if (req.query.process) query = query.ilike('process', `%${req.query.process}%`);
@@ -162,6 +198,8 @@ const getAllCalls = async (req, res) => {
     if (sortField === 'callId') pgSortField = 'call_id';
     else if (sortField === 'agentName') pgSortField = 'agent_name';
     else if (sortField === 'duration') pgSortField = 'duration';
+    else if (sortField === 'talktime') pgSortField = 'talktime';
+    else if (sortField === 'dispose') pgSortField = 'dispose';
 
     query = query.order(pgSortField, { ascending: sortOrder }).range(skip, skip + limit - 1);
 
@@ -216,7 +254,7 @@ const getCallById = async (req, res) => {
 
 const createCall = async (req, res) => {
   try {
-    const { callId, agentName, date, phoneNumber, duration, remarks } = req.body;
+    const { callId, agentName, date, phoneNumber, duration, talktime, dispose, remarks } = req.body;
 
     if (!callId || !agentName || !date) {
       return res.status(400).json({ message: 'Please provide all required fields' });
@@ -230,6 +268,8 @@ const createCall = async (req, res) => {
         date: new Date(date).toISOString(),
         phoneNumber,
         duration,
+        talktime,
+        dispose,
         remarks,
         audioUrl: '',
         uploadedBy: req.userId,
@@ -259,6 +299,8 @@ const createCall = async (req, res) => {
         date: new Date(date).toISOString(),
         phone_number: phoneNumber,
         duration,
+        talktime,
+        dispose,
         remarks,
         audio_url: '',
         uploaded_by: req.userId,
@@ -339,8 +381,16 @@ const uploadCallData = async (req, res) => {
         let dateVal = normalizedRow['date'] || normalizedRow['date time'] || normalizedRow['date & time'] || normalizedRow['timestamp'] || normalizedRow['time'] || normalizedRow['date-time'];
         let finalDate = parseExcelDate(dateVal);
 
-        const phoneNumber = String(normalizedRow['phone number'] || normalizedRow['phone'] || normalizedRow['customer number'] || normalizedRow['mobile'] || '').trim();
-        const duration = String(normalizedRow['talktime'] || normalizedRow['talk time'] || normalizedRow['duration'] || normalizedRow['call duration'] || normalizedRow['call time'] || normalizedRow['length'] || '').trim();
+                const phoneNumber = String(normalizedRow['phone number'] || normalizedRow['phone'] || normalizedRow['customer number'] || normalizedRow['mobile'] || '').trim();
+        
+        const durationVal = normalizedRow['duration'] || normalizedRow['call duration'] || normalizedRow['length'] || '';
+        const duration = formatExcelDuration(durationVal);
+
+        const talktimeVal = normalizedRow['talktime'] || normalizedRow['talk time'] || '';
+        const talktime = formatExcelDuration(talktimeVal);
+
+        const dispose = String(normalizedRow['dispose'] || normalizedRow['disposition'] || '').trim();
+        
         const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
         const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || '').trim();
         const recordingPath = String(normalizedRow['recording path'] || normalizedRow['audio link'] || normalizedRow['audio url'] || normalizedRow['recording link'] || '').trim();
@@ -353,6 +403,8 @@ const uploadCallData = async (req, res) => {
           date: finalDate.toISOString(),
           phone_number: phoneNumber,
           duration,
+          talktime,
+          dispose,
           remarks,
           customer_name: customerName,
           uploaded_by: req.userId,
@@ -702,13 +754,13 @@ const updateCallStatus = async (req, res) => {
 const updateCall = async (req, res) => {
   try {
     const { id } = req.params;
-    const { agentName, process: callProcess, status, duration, auditorName } = req.body;
+    const { agentName, process: callProcess, status, duration, talktime, dispose, auditorName } = req.body;
     
     // Role-based validation: normal persons can only update status and auditorName
     const isAdmin = req.userRole === 'admin' || req.userRole === 'superadmin';
     if (!isAdmin) {
-      if (agentName !== undefined || callProcess !== undefined || duration !== undefined) {
-        return res.status(403).json({ status: 'error', message: 'You do not have permission to edit agent details, process, or duration.' });
+      if (agentName !== undefined || callProcess !== undefined || duration !== undefined || talktime !== undefined || dispose !== undefined) {
+        return res.status(403).json({ status: 'error', message: 'You do not have permission to edit agent details, process, duration, talktime, or dispose.' });
       }
     }
     
@@ -722,6 +774,8 @@ const updateCall = async (req, res) => {
           process: callProcess !== undefined ? callProcess : callsLocal[callIndex].process,
           status: status !== undefined ? status : callsLocal[callIndex].status,
           duration: duration !== undefined ? duration : callsLocal[callIndex].duration,
+          talktime: talktime !== undefined ? talktime : callsLocal[callIndex].talktime,
+          dispose: dispose !== undefined ? dispose : callsLocal[callIndex].dispose,
           auditorName: auditorName !== undefined ? auditorName : callsLocal[callIndex].auditorName,
           updatedAt: new Date().toISOString()
         };
@@ -736,6 +790,8 @@ const updateCall = async (req, res) => {
       if (callProcess !== undefined) updateData.process = callProcess;
       if (status !== undefined) updateData.status = status;
       if (duration !== undefined) updateData.duration = duration;
+      if (talktime !== undefined) updateData.talktime = talktime;
+      if (dispose !== undefined) updateData.dispose = dispose;
       if (auditorName !== undefined) updateData.auditor_name = auditorName;
       
       let resultCall = null;
@@ -1066,7 +1122,15 @@ const parseExcel = async (req, res) => {
         let finalDate = parseExcelDate(dateVal);
 
         const phoneNumber = String(normalizedRow['phone number'] || normalizedRow['phone'] || normalizedRow['customer number'] || normalizedRow['mobile'] || '').trim();
-        const duration = String(normalizedRow['talktime'] || normalizedRow['talk time'] || normalizedRow['duration'] || normalizedRow['call duration'] || normalizedRow['call time'] || normalizedRow['length'] || '').trim();
+        
+        const durationVal = normalizedRow['duration'] || normalizedRow['call duration'] || normalizedRow['length'] || '';
+        const duration = formatExcelDuration(durationVal);
+
+        const talktimeVal = normalizedRow['talktime'] || normalizedRow['talk time'] || '';
+        const talktime = formatExcelDuration(talktimeVal);
+
+        const dispose = String(normalizedRow['dispose'] || normalizedRow['disposition'] || '').trim();
+        
         const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
         const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || '').trim();
         const recordingPath = String(normalizedRow['recording path'] || normalizedRow['audio link'] || normalizedRow['audio url'] || normalizedRow['recording link'] || '').trim();
@@ -1079,6 +1143,8 @@ const parseExcel = async (req, res) => {
           date: finalDate.toISOString(),
           phone_number: phoneNumber,
           duration,
+          talktime,
+          dispose,
           remarks,
           customer_name: customerName,
           audio_url: recordingPath || ''
