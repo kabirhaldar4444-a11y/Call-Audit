@@ -125,6 +125,7 @@ const Calls = () => {
   const [pageSize, setPageSize] = useState(25);
   const [databaseMode, setDatabaseMode] = useState('online');
   const [auditorNames, setAuditorNames] = useState([]);
+  const [processesList, setProcessesList] = useState([]);
 
   const todayStr = getTodayDateString();
   const yesterdayStr = getYesterdayDateString();
@@ -215,8 +216,18 @@ const Calls = () => {
     }
   };
 
+  const fetchProcesses = async () => {
+    try {
+      const res = await api.get('/calls/processes');
+      setProcessesList(res.data.data || []);
+    } catch (error) {
+      console.error('Error fetching processes:', error);
+    }
+  };
+
   useEffect(() => {
     fetchAuditorNames();
+    fetchProcesses();
   }, []);
 
   const fetchCalls = async () => {
@@ -253,6 +264,7 @@ const Calls = () => {
       setCalls(response.data.data || []);
       setPagination(response.data.pagination || { total: 0, totalPages: 1, limit: pageSize || 25 });
       setDatabaseMode(response.data.databaseMode || 'online');
+      fetchProcesses();
     } catch (error) {
       console.error('Error fetching calls:', error);
     } finally {
@@ -264,15 +276,7 @@ const Calls = () => {
     fetchCalls();
   }, [page, pageSize, appliedFilters]);
 
-  // Extract unique processes dynamically
-  const commonProcesses = ['Sales', 'Support', 'Billing', 'KYC', 'Retention', 'Verification'];
-  const uniqueProcesses = useMemo(() => {
-    const set = new Set(commonProcesses);
-    calls.forEach(c => {
-      if (c.process) set.add(c.process);
-    });
-    return Array.from(set).sort();
-  }, [calls]);
+  // No uniqueProcesses useMemo necessary since we fetch all processes dynamically from database
 
   const resetFilters = () => {
     const defaultFilters = {
@@ -817,7 +821,7 @@ const Calls = () => {
               className="toolbar-select"
             >
               <option value="">All Processes</option>
-              {uniqueProcesses.map(p => <option key={p} value={p}>{p}</option>)}
+              {processesList.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
 
             <select 

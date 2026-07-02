@@ -142,6 +142,7 @@ const Dashboard = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [auditorNames, setAuditorNames] = useState([]);
+  const [processesList, setProcessesList] = useState([]);
   
   const todayStr = getTodayDateString();
   const yesterdayStr = getYesterdayDateString();
@@ -231,8 +232,18 @@ const Dashboard = () => {
     }
   };
 
+  const fetchProcesses = async () => {
+    try {
+      const res = await api.get('/calls/processes');
+      setProcessesList(res.data.data || []);
+    } catch (error) {
+      console.error('Error fetching processes:', error);
+    }
+  };
+
   useEffect(() => {
     fetchAuditorNames();
+    fetchProcesses();
   }, []);
 
   const fetchData = async () => {
@@ -276,6 +287,7 @@ const Dashboard = () => {
       setCalls(callsRes.data.data || []);
       setPagination(callsRes.data.pagination || { total: 0, totalPages: 1, limit: pageSize || 25 });
       setSelectedCalls([]); 
+      fetchProcesses();
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -288,15 +300,7 @@ const Dashboard = () => {
     fetchData();
   }, [page, pageSize, appliedFilters]);
 
-  // Extract unique processes dynamically
-  const commonProcesses = ['Sales', 'Support', 'Billing', 'KYC', 'Retention', 'Verification'];
-  const uniqueProcesses = useMemo(() => {
-    const set = new Set(commonProcesses);
-    calls.forEach(c => {
-      if (c.process) set.add(c.process);
-    });
-    return Array.from(set).sort();
-  }, [calls]);
+  // No uniqueProcesses useMemo necessary since we fetch all processes dynamically from database
 
   const resetFilters = () => {
     const defaultFilters = {
@@ -1252,7 +1256,7 @@ const Dashboard = () => {
               className="toolbar-select"
             >
               <option value="">All Processes</option>
-              {uniqueProcesses.map(p => <option key={p} value={p}>{p}</option>)}
+              {processesList.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
 
             <select 

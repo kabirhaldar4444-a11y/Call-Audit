@@ -15,7 +15,8 @@ const {
   getAuditorStats,
   parseExcel,
   uploadChunk,
-  proxyAudio
+  proxyAudio,
+  getProcesses
 } = require('../controllers/callController');
 const { audioUpload, dataUpload } = require('../utils/upload');
 
@@ -24,6 +25,7 @@ const router = express.Router();
 router.get('/stats', authenticate, getDashboardStats);
 router.get('/by-date', authenticate, getCallsByDateRange);
 router.get('/auditors', authenticate, getAuditorNames);
+router.get('/processes', authenticate, getProcesses);
 router.get('/auditors-stats', authenticate, getAuditorStats);
 router.get('/proxy-audio', proxyAudio);
 router.get('/', authenticate, getAllCalls);

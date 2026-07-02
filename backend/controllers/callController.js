@@ -989,6 +989,46 @@ const getAuditorNames = async (req, res) => {
   }
 };
 
+const getProcesses = async (req, res) => {
+  try {
+    if (process.env.DB_MODE === 'offline') {
+      const callsLocal = getCallsFromLocalFile({});
+      const processes = Array.from(new Set(callsLocal.map(c => c.process).filter(Boolean))).sort();
+      return res.status(200).json({
+        message: 'Processes retrieved successfully',
+        data: processes
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('calls')
+      .select('process')
+      .not('process', 'is', null)
+      .neq('process', '');
+
+    if (error) {
+      console.warn('⚠️ Supabase error checking processes:', error.message);
+      return res.status(200).json({
+        message: 'Processes loaded gracefully (empty list)',
+        data: []
+      });
+    }
+
+    const processes = Array.from(new Set(data.map(item => item.process))).sort();
+
+    res.status(200).json({
+      message: 'Processes retrieved successfully',
+      data: processes
+    });
+  } catch (error) {
+    console.error('Error in getProcesses:', error);
+    res.status(200).json({
+      message: 'Error retrieving processes, falling back to empty list',
+      data: []
+    });
+  }
+};
+
 const getAuditorStats = async (req, res) => {
   try {
     const { dateFrom, dateTo, search, process } = req.query;
@@ -1371,6 +1411,7 @@ module.exports = {
   getAuditorStats,
   parseExcel,
   uploadChunk,
-  proxyAudio
+  proxyAudio,
+  getProcesses
 };
 
