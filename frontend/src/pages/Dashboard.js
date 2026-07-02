@@ -629,7 +629,7 @@ const Dashboard = () => {
 
             const phoneNumber = String(normalizedRow['phone number'] || normalizedRow['phone'] || normalizedRow['customer number'] || normalizedRow['mobile'] || '').trim();
             
-            const durationVal = normalizedRow['duration'] || normalizedRow['call duration'] || normalizedRow['length'] || '';
+            const durationVal = normalizedRow['duration'] || normalizedRow['call duration'] || normalizedRow['call time'] || normalizedRow['length'] || '';
             const duration = formatExcelDuration(durationVal);
 
             const talktimeVal = normalizedRow['talktime'] || normalizedRow['talk time'] || '';
