@@ -3,7 +3,10 @@ const path = require('path');
 const fs = require('fs');
 
 // Ensure upload directories exist
-const uploadDirs = ['uploads/audio', 'uploads/data'];
+const uploadDirs = process.env.VERCEL
+  ? ['/tmp/uploads/audio', '/tmp/uploads/data']
+  : ['uploads/audio', 'uploads/data'];
+
 uploadDirs.forEach((dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -13,7 +16,7 @@ uploadDirs.forEach((dir) => {
 // Configure storage for audio files
 const audioStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/audio');
+    cb(null, process.env.VERCEL ? '/tmp/uploads/audio' : 'uploads/audio');
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -24,7 +27,7 @@ const audioStorage = multer.diskStorage({
 // Configure storage for data files (Excel/CSV)
 const dataStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/data');
+    cb(null, process.env.VERCEL ? '/tmp/uploads/data' : 'uploads/data');
   },
   filename: (req, file, cb) => {
     cb(null, 'data-' + Date.now() + path.extname(file.originalname));
