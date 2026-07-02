@@ -509,9 +509,17 @@ const deleteCalls = async (req, res) => {
       let deletedCount = 0;
 
       if (dateFrom || dateTo) {
-        const fromDate = dateFrom ? new Date(dateFrom) : null;
-        const toDate = dateTo ? new Date(dateTo) : null;
-        if (toDate) toDate.setHours(23, 59, 59, 999);
+        let fromVal = dateFrom;
+        if (fromVal && fromVal.length === 10) {
+          fromVal = new Date(fromVal + 'T00:00:00').toISOString();
+        }
+        let toVal = dateTo;
+        if (toVal && toVal.length === 10) {
+          toVal = new Date(toVal + 'T23:59:59.999').toISOString();
+        }
+
+        const fromDate = fromVal ? new Date(fromVal) : null;
+        const toDate = toVal ? new Date(toVal) : null;
 
         remainingCalls = callsLocal.filter(c => {
           const cDate = new Date(c.date);
@@ -543,11 +551,21 @@ const deleteCalls = async (req, res) => {
 
     if (dateFrom || dateTo) {
       let query = supabase.from('calls').delete();
-      if (dateFrom) query = query.gte('date', dateFrom);
+      if (dateFrom) {
+        let fromVal = dateFrom;
+        if (fromVal.length === 10) {
+          const fromDate = new Date(fromVal + 'T00:00:00');
+          fromVal = fromDate.toISOString();
+        }
+        query = query.gte('date', fromVal);
+      }
       if (dateTo) {
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        query = query.lte('date', toDate.toISOString());
+        let toVal = dateTo;
+        if (toVal.length === 10) {
+          const toDate = new Date(toVal + 'T23:59:59.999');
+          toVal = toDate.toISOString();
+        }
+        query = query.lte('date', toVal);
       }
       const { error } = await query;
       if (error) throw new Error(error.message);
@@ -839,17 +857,17 @@ const getCallsByDateRange = async (req, res) => {
       });
     }
 
-    let start = new Date(startDate);
-    let end = new Date(endDate);
+    let start;
+    let end;
     if (startDate.length === 10) {
       start = new Date(startDate + 'T00:00:00');
     } else {
-      start.setUTCHours(0, 0, 0, 0);
+      start = new Date(startDate);
     }
     if (endDate.length === 10) {
       end = new Date(endDate + 'T23:59:59.999');
     } else {
-      end.setUTCHours(23, 59, 59, 999);
+      end = new Date(endDate);
     }
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {

@@ -240,13 +240,23 @@ const Dashboard = () => {
     isFetching.current = true;
     
     try {
+      let dateFromParam = appliedFilters.dateFrom;
+      let dateToParam = appliedFilters.dateTo;
+
+      if (dateFromParam && dateFromParam.length === 10) {
+        dateFromParam = new Date(dateFromParam + 'T00:00:00').toISOString();
+      }
+      if (dateToParam && dateToParam.length === 10) {
+        dateToParam = new Date(dateToParam + 'T23:59:59.999').toISOString();
+      }
+
       const queryParams = new URLSearchParams({
         page,
         limit: pageSize || 25,
         process: appliedFilters.process,
         status: appliedFilters.status,
-        dateFrom: appliedFilters.dateFrom,
-        dateTo: appliedFilters.dateTo
+        dateFrom: dateFromParam,
+        dateTo: dateToParam
       });
 
       if (appliedFilters.search) {

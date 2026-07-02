@@ -110,21 +110,21 @@ function getCallsFromLocalFile(filters = {}) {
     }
     
     if (filters.dateFrom) {
-      let fromDate = new Date(filters.dateFrom);
+      let fromDate;
       if (filters.dateFrom.length === 10) {
         fromDate = new Date(filters.dateFrom + 'T00:00:00');
       } else {
-        fromDate.setUTCHours(0, 0, 0, 0);
+        fromDate = new Date(filters.dateFrom);
       }
       allCalls = allCalls.filter(c => new Date(c.date) >= fromDate);
     }
     
     if (filters.dateTo) {
-      let toDate = new Date(filters.dateTo);
+      let toDate;
       if (filters.dateTo.length === 10) {
         toDate = new Date(filters.dateTo + 'T23:59:59.999');
       } else {
-        toDate.setUTCHours(23, 59, 59, 999);
+        toDate = new Date(filters.dateTo);
       }
       allCalls = allCalls.filter(c => new Date(c.date) <= toDate);
     }
