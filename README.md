@@ -205,6 +205,3 @@ For issues or questions, please refer to the documentation or create an issue in
 
 ISC
 
-## Login Password
-kabirhaldar4444@gmail.com
-Password: SuperAdmin#2026!Secure

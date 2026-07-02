@@ -87,7 +87,9 @@ const startServer = async () => {
   }
 };
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
@@ -110,4 +112,6 @@ process.on('SIGTERM', () => {
   console.log('\n✋ Server shutting down (SIGTERM)...');
   process.exit(0);
 });
+
+module.exports = app;
 
