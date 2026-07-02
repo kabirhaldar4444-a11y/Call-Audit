@@ -1,0 +1,209 @@
+.users-container {
+  padding: 30px;
+  margin-left: 260px;
+  margin-top: 70px;
+  min-height: calc(100vh - 70px);
+}
+
+.users-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 35px;
+}
+
+.users-header h2 {
+  margin: 0 0 5px 0;
+  font-family: var(--font-title);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.users-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.users-layout-grid {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 30px;
+  align-items: start;
+}
+
+/* Form Card Styling */
+.form-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 30px;
+  box-shadow: var(--glass-shadow);
+}
+
+.form-card h3 {
+  margin: 0 0 25px 0;
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-purple);
+  letter-spacing: 0.5px;
+}
+
+.users-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.role-select {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  padding: 14px 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  width: 100%;
+}
+
+.role-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.create-user-btn {
+  padding: 14px;
+  background: linear-gradient(135deg, var(--accent-purple) 0%, #6d28d9 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+.create-user-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px var(--accent-purple-glow);
+  background: linear-gradient(135deg, #a78bfa 0%, var(--accent-purple) 100%);
+}
+
+/* Table Card Styling */
+.table-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 30px;
+  box-shadow: var(--glass-shadow);
+}
+
+.table-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.table-card-header h3 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.user-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.role-badge {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-title);
+  letter-spacing: 0.5px;
+}
+
+.role-badge.superadmin {
+  background: rgba(236, 72, 153, 0.15);
+  color: var(--accent-pink);
+}
+
+.role-badge.admin {
+  background: rgba(6, 182, 212, 0.15);
+  color: var(--accent-cyan);
+}
+
+.delete-user-btn {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.delete-user-btn:hover {
+  background: #ef4444;
+  color: white;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.users-loading {
+  text-align: center;
+  padding: 60px 30px;
+  margin-left: 260px;
+  margin-top: 70px;
+  color: var(--text-secondary);
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+@media (max-width: 1200px) {
+  .users-container {
+    margin-left: 0;
+  }
+  .users-loading {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 1024px) {
+  .users-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .users-container {
+    padding: 20px;
+    margin-top: 60px;
+  }
+  .users-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  th, td {
+    padding: 12px 10px;
+    font-size: 11px;
+  }
+}

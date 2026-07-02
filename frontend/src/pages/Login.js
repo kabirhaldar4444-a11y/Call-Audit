@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 import './Login.css';
 
 const Login = ({ onLoginSuccess }) => {
@@ -9,6 +10,7 @@ const Login = ({ onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [serverStatus, setServerStatus] = useState('checking');
+  const [showPassword, setShowPassword] = useState(false);
   const { login, register: registerUser, loading, error } = useAuth();
 
   // Check if backend is running
@@ -96,14 +98,25 @@ const Login = ({ onLoginSuccess }) => {
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              disabled={loading || serverStatus === 'disconnected'}
-            />
+            <div className="password-wrapper">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                disabled={loading || serverStatus === 'disconnected'}
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading || serverStatus === 'disconnected'}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
           </div>
 
           {error && <div className="error-message">{error}</div>}

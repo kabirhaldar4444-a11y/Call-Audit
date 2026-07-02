@@ -2,15 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
-const connectDB = require('./config/database');
 const initializeDatabase = require('./config/seed');
 
 // Load environment variables
 dotenv.config();
 
 // Check for required environment variables
-if (!process.env.MONGODB_URI) {
-  console.error('ERROR: MONGODB_URI is not set in .env file');
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  console.error('ERROR: SUPABASE_URL or SUPABASE_ANON_KEY is not set in .env file');
   process.exit(1);
 }
 
@@ -24,8 +23,8 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ limit: '500mb', extended: true }));
 
 // Static files for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -59,24 +58,56 @@ app.use((req, res) => {
 // Start server after DB connection
 const startServer = async () => {
   try {
-    const PORT = process.env.PORT || 5000;
+    const PORT = process.env.PORT || 5001;
     
-    // Connect to database
-    await connectDB();
-    
-    // Initialize database with default user if needed
-    await initializeDatabase();
+    // Initialize database with default user if needed (wrapped in try-catch)
+    try {
+      await initializeDatabase();
+    } catch (seedErr) {
+      console.warn('⚠️  Seed initialization skipped:', seedErr.message);
+    }
 
-    app.listen(PORT, () => {
-      console.log(`✅ Server running on port ${PORT}`);
-      console.log(`📝 Environment: ${process.env.NODE_ENV}`);
-      console.log(`🔗 API: http://localhost:${PORT}/api`);
+    const server = app.listen(PORT, () => {
+      console.log(`\n✅ Server running on port ${PORT}`);
+      console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📦 Database Mode: ONLINE (Supabase)`);
+      console.log(`🔗 API: http://localhost:${PORT}/api\n`);
     });
+
+    server.timeout = 600000; // 10 minutes for large uploads
+    
+    // Handle server errors
+    server.on('error', (err) => {
+      console.error('Server error:', err);
+    });
+    
   } catch (err) {
     console.error('❌ Failed to start server:', err.message);
-    process.exit(1);
+    console.error('Stack:', err.stack);
   }
 };
 
 startServer();
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit - keep server running
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('\n✋ Server shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n✋ Server shutting down (SIGTERM)...');
+  process.exit(0);
+});
 

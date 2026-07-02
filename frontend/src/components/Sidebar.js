@@ -1,8 +1,8 @@
 import React from 'react';
 import './Sidebar.css';
-import { FiMenu, FiX, FiLogOut, FiHome, FiPhone, FiCheckSquare } from 'react-icons/fi';
+import { FiMenu, FiX, FiLogOut, FiHome, FiPhone, FiCheckSquare, FiUsers } from 'react-icons/fi';
 
-const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
+const Sidebar = ({ isOpen, toggleSidebar, onLogout, user }) => {
   return (
     <>
       <button className="sidebar-toggle" onClick={toggleSidebar}>
@@ -27,6 +27,12 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
             <FiCheckSquare size={20} />
             <span>Audits</span>
           </a>
+          {user?.role === 'superadmin' && (
+            <a href="/users" className="nav-item">
+              <FiUsers size={20} />
+              <span>Users</span>
+            </a>
+          )}
         </nav>
 
         <div className="sidebar-footer">

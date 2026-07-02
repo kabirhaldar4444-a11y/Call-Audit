@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './AudioPlayer.css';
-import { FiPlay, FiPause, FiX, FiActivity } from 'react-icons/fi';
+import { FiPlay, FiPause, FiX, FiActivity, FiPlus, FiMinus, FiVolume2, FiVolumeX } from 'react-icons/fi';
 import { FaHeadphones } from 'react-icons/fa';
 
 const AudioPlayer = ({ audioUrl, callInfo, onClose }) => {
@@ -8,11 +8,22 @@ const AudioPlayer = ({ audioUrl, callInfo, onClose }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [audioError, setAudioError] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [volume, setVolume] = useState(1); // Volume from 0 to 1
   const audioRef = useRef(null);
 
   useEffect(() => {
     setAudioError(false);
-  }, [audioUrl]);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed;
+    }
+  }, [audioUrl, playbackSpeed]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
 
   const handlePlayPause = () => {
     if (audioError) return;
@@ -61,6 +72,18 @@ const AudioPlayer = ({ audioUrl, callInfo, onClose }) => {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const getPlayableUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http')) {
+      return url;
+    }
+    return `${process.env.REACT_APP_API_URL.replace('/api', '')}${url}`;
+  };
+
+  const toggleMute = () => {
+    setVolume(prev => prev > 0 ? 0 : 1);
+  };
+
   return (
     <div className="audio-player-overlay">
       <div className="audio-player-modal premium">
@@ -92,13 +115,13 @@ const AudioPlayer = ({ audioUrl, callInfo, onClose }) => {
               <span></span><span></span><span></span><span></span><span></span>
             </div>
           </div>
+
           {audioError && (
             <div className="audio-error-msg">
               <p>Unable to play audio directly.</p>
               <p>Please use the <strong>Open Original Link</strong> above.</p>
             </div>
           )}
-
 
           <div className="progress-section">
             <input
@@ -114,23 +137,88 @@ const AudioPlayer = ({ audioUrl, callInfo, onClose }) => {
             </div>
           </div>
 
-          <div className="main-controls">
-            <button onClick={() => handleSkip(-30)} className="minor-btn"><FiPlay style={{transform: 'rotate(180deg)'}} /></button>
-            <button onClick={handlePlayPause} className="master-play">
-              {isPlaying ? <FiPause /> : <FiPlay />}
-            </button>
-            <button onClick={() => handleSkip(30)} className="minor-btn"><FiPlay /></button>
-          </div>
+          <div className="controls-container">
+            {/* Restructured Playback Row to prevent overflow */}
+            <div className="playback-controls-row">
+              <button onClick={() => handleSkip(-30)} className="playback-btn" title="Rewind 30s">⏪ 30s</button>
+              <button onClick={() => handleSkip(-10)} className="playback-btn large" title="Rewind 10s">⏪ 10s</button>
+              <button onClick={handlePlayPause} className="master-play" title="Play/Pause">
+                {isPlaying ? <FiPause /> : <FiPlay />}
+              </button>
+              <button onClick={() => handleSkip(10)} className="playback-btn large" title="Forward 10s">10s ⏩</button>
+              <button onClick={() => handleSkip(30)} className="playback-btn" title="Forward 30s">30s ⏩</button>
+            </div>
 
-          <div className="sub-controls">
-            <button onClick={() => handleSkip(-10)} className="step-btn">⏪ -10 sec</button>
-            <button onClick={() => handleSkip(10)} className="step-btn">+10 sec ⏩</button>
+            {/* Dedicated Sliders Section */}
+            <div className="sliders-section">
+              {/* Playback Speed Row */}
+              <div className="slider-row">
+                <div className="slider-header">
+                  <span>Playback Speed</span>
+                  <span className="slider-header-value">{playbackSpeed}x</span>
+                </div>
+                <div className="slider-input-wrapper">
+                  <button 
+                    onClick={() => setPlaybackSpeed(prev => Math.max(0.5, parseFloat((prev - 0.1).toFixed(1))))} 
+                    className="slider-btn"
+                    title="Decrease Speed"
+                  >
+                    <FiMinus />
+                  </button>
+                  <input 
+                    type="range"
+                    min="0.5"
+                    max="5"
+                    step="0.1"
+                    value={playbackSpeed}
+                    onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
+                    className="audio-slider"
+                  />
+                  <button 
+                    onClick={() => setPlaybackSpeed(prev => Math.min(5.0, parseFloat((prev + 0.1).toFixed(1))))} 
+                    className="slider-btn"
+                    title="Increase Speed"
+                  >
+                    <FiPlus />
+                  </button>
+                </div>
+              </div>
+
+              {/* Volume Row */}
+              <div className="slider-row">
+                <div className="slider-header">
+                  <span>Volume</span>
+                  <span className="slider-header-value">{Math.round(volume * 100)}%</span>
+                </div>
+                <div className="slider-input-wrapper">
+                  <button onClick={toggleMute} className="slider-btn" title={volume > 0 ? "Mute" : "Unmute"}>
+                    {volume > 0 ? <FiVolume2 /> : <FiVolumeX />}
+                  </button>
+                  <input 
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="audio-slider"
+                  />
+                  <button 
+                    onClick={() => setVolume(prev => Math.min(1.0, parseFloat((prev + 0.05).toFixed(2))))} 
+                    className="slider-btn"
+                    title="Increase Volume"
+                  >
+                    <FiPlus />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         <audio
           ref={audioRef}
-          src={audioUrl}
+          src={getPlayableUrl(audioUrl)}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={() => setIsPlaying(false)}
@@ -142,4 +230,3 @@ const AudioPlayer = ({ audioUrl, callInfo, onClose }) => {
 };
 
 export default AudioPlayer;
-

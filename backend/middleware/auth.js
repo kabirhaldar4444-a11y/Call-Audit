@@ -18,10 +18,18 @@ const authenticate = (req, res, next) => {
 };
 
 const adminOnly = (req, res, next) => {
-  if (req.userRole !== 'admin') {
+  if (req.userRole !== 'admin' && req.userRole !== 'superadmin') {
     return res.status(403).json({ message: 'Admin access required' });
   }
   next();
 };
 
-module.exports = { authenticate, adminOnly };
+const superadminOnly = (req, res, next) => {
+  if (req.userRole !== 'superadmin') {
+    return res.status(403).json({ message: 'Superadmin access required' });
+  }
+  next();
+};
+
+module.exports = { authenticate, adminOnly, superadminOnly };
+
