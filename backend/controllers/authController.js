@@ -282,6 +282,50 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { register, login, createUser, getAllUsers, deleteUser };
+const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, email, password, role } = req.body;
+
+    if (process.env.DB_MODE === 'offline') {
+      return res.status(400).json({ message: 'Updating users is not supported in offline mode' });
+    }
+
+    // Check if user is trying to update their own role (optional restriction, let's keep it safe)
+    if (id === req.userId && role && role !== req.userRole) {
+      return res.status(400).json({ message: 'You cannot change your own role permission' });
+    }
+
+    // Prepare update data
+    const updateData = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (role) updateData.role = role;
+    
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', id)
+      .select('id, username, email, role, is_active, created_at')
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    res.status(200).json({
+      message: 'User updated successfully',
+      user: { id: user.id, _id: user.id, username: user.username, email: user.email, role: user.role }
+    });
+  } catch (error) {
+    console.error('❌ Update user error:', error.message);
+    res.status(500).json({ message: 'Error updating user', error: error.message });
+  }
+};
+
+module.exports = { register, login, createUser, getAllUsers, deleteUser, updateUser };
+
 
 

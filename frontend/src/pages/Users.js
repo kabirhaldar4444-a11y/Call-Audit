@@ -9,6 +9,9 @@ const Users = () => {
   const [submitting, setSubmitting] = useState(false);
   const [statusMsg, setStatusMsg] = useState(null);
   
+  const [isEditing, setIsEditing] = useState(false);
+  const [editUserId, setEditUserId] = useState(null);
+
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -54,20 +57,30 @@ const Users = () => {
       }
     },
     { 
-      headerName: "Action", 
+      headerName: "Actions", 
       sortable: false, 
       filter: false,
+      width: 180,
       cellRenderer: (params) => {
         const u = params.data;
         if (!u) return null;
         return (
-          <button
-            className="delete-user-btn"
-            onClick={() => handleDelete(u._id)}
-            title="Revoke access"
-          >
-            Revoke
-          </button>
+          <div className="action-buttons-cell">
+            <button
+              className="edit-user-btn"
+              onClick={() => handleStartEdit(u)}
+              title="Edit user credentials"
+            >
+              Edit
+            </button>
+            <button
+              className="delete-user-btn"
+              onClick={() => handleDelete(u._id)}
+              title="Delete user credentials"
+            >
+              Delete
+            </button>
+          </div>
         );
       }
     }
@@ -97,25 +110,70 @@ const Users = () => {
     });
   };
 
+  const handleStartEdit = (user) => {
+    setIsEditing(true);
+    setEditUserId(user._id || user.id);
+    setFormData({
+      username: user.username,
+      email: user.email,
+      password: '', // Blank by default, optional update
+      role: user.role || 'admin'
+    });
+    setStatusMsg(null);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditUserId(null);
+    setFormData({
+      username: '',
+      email: '',
+      password: '',
+      role: 'admin'
+    });
+    setStatusMsg(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { username, email, password, role } = formData;
 
-    if (!username || !email || !password || !role) {
-      setStatusMsg({ type: 'error', text: 'All fields are required!' });
-      return;
+    if (isEditing) {
+      if (!username || !email || !role) {
+        setStatusMsg({ type: 'error', text: 'Username, Email and Role are required!' });
+        return;
+      }
+    } else {
+      if (!username || !email || !password || !role) {
+        setStatusMsg({ type: 'error', text: 'All fields are required!' });
+        return;
+      }
     }
 
     try {
       setSubmitting(true);
-      setStatusMsg({ type: 'info', text: 'Creating user...' });
-      const response = await api.post('/auth/users', formData);
+      setStatusMsg({ type: 'info', text: isEditing ? 'Updating user...' : 'Creating user...' });
       
-      setStatusMsg({ type: 'success', text: response.data.message || 'User created successfully!' });
+      let response;
+      if (isEditing) {
+        const payload = { username, email, role };
+        if (password.trim() !== '') {
+          payload.password = password;
+        }
+        response = await api.put(`/auth/users/${editUserId}`, payload);
+      } else {
+        response = await api.post('/auth/users', formData);
+      }
+      
+      setStatusMsg({ type: 'success', text: response.data.message || (isEditing ? 'User updated successfully!' : 'User created successfully!') });
+      
+      // Reset editing states
+      setIsEditing(false);
+      setEditUserId(null);
       setFormData({ username: '', email: '', password: '', role: 'admin' });
       fetchUsers();
     } catch (error) {
-      setStatusMsg({ type: 'error', text: error.response?.data?.message || 'Failed to create user' });
+      setStatusMsg({ type: 'error', text: error.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} user` });
     } finally {
       setSubmitting(false);
     }
@@ -130,6 +188,12 @@ const Users = () => {
       setStatusMsg({ type: 'info', text: 'Deleting user...' });
       await api.delete(`/auth/users/${id}`);
       setStatusMsg({ type: 'success', text: 'User deleted successfully!' });
+      
+      // If we are currently editing the deleted user, cancel the edit mode
+      if (isEditing && editUserId === id) {
+        handleCancelEdit();
+      }
+      
       fetchUsers();
     } catch (error) {
       setStatusMsg({ type: 'error', text: error.response?.data?.message || 'Failed to delete user' });
@@ -156,10 +220,10 @@ const Users = () => {
       </div>
 
       <div className="users-layout-grid">
-        {/* User Creation Form */}
+        {/* User Creation / Editing Form */}
         <div className="form-card-container">
           <div className="form-card">
-            <h3>🔑 Provision User</h3>
+            <h3>{isEditing ? '✏️ Edit User' : '🔑 Provision User'}</h3>
             <form onSubmit={handleSubmit} className="users-form">
               <div className="form-group">
                 <label htmlFor="username">Username</label>
@@ -188,14 +252,16 @@ const Users = () => {
               </div>
 
               <div className="form-group">
-                <label htmlFor="password">Password</label>
+                <label htmlFor="password">
+                  Password {isEditing && <span className="optional-lbl">(Leave blank to keep current)</span>}
+                </label>
                 <input
                   type="password"
                   id="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="••••••••"
+                  placeholder={isEditing ? "Optional: Enter new password" : "••••••••"}
                   disabled={submitting}
                 />
               </div>
@@ -215,9 +281,22 @@ const Users = () => {
                 </select>
               </div>
 
-              <button type="submit" className="create-user-btn" disabled={submitting}>
-                {submitting ? 'Provisioning...' : 'Create Account'}
-              </button>
+              <div className="form-buttons-group">
+                <button type="submit" className="create-user-btn" disabled={submitting}>
+                  {submitting ? (isEditing ? 'Updating...' : 'Provisioning...') : (isEditing ? 'Update Account' : 'Create Account')}
+                </button>
+                
+                {isEditing && (
+                  <button 
+                    type="button" 
+                    className="cancel-edit-btn" 
+                    onClick={handleCancelEdit}
+                    disabled={submitting}
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
             </form>
           </div>
         </div>

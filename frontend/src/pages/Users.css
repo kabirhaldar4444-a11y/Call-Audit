@@ -207,3 +207,63 @@
     font-size: 11px;
   }
 }
+
+/* Edit Mode and Action buttons */
+.action-buttons-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+}
+
+.edit-user-btn {
+  background: rgba(139, 92, 246, 0.1);
+  color: #c084fc;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.edit-user-btn:hover {
+  background: var(--accent-purple);
+  color: white;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+}
+
+.form-buttons-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.cancel-edit-btn {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.cancel-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.optional-lbl {
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--text-secondary);
+  margin-left: 5px;
+}
+
