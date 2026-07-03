@@ -180,6 +180,7 @@ const Calls = () => {
     listen: true,
     callId: true,
     agentName: true,
+    customerName: true,
     process: true,
     date: true,
     duration: true,
@@ -198,6 +199,7 @@ const Calls = () => {
     { id: 'listen', name: 'Listen' },
     { id: 'callId', name: 'Call ID' },
     { id: 'agentName', name: 'Agent' },
+    { id: 'customerName', name: 'Name' },
     { id: 'process', name: 'Process' },
     { id: 'date', name: 'Date & Time' },
     { id: 'duration', name: 'Duration' },
@@ -523,6 +525,14 @@ const Calls = () => {
       hide: !columnVisibility.agentName
     },
     { 
+      field: "customerName", 
+      headerName: "Name", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 130,
+      hide: !columnVisibility.customerName
+    },
+    { 
       field: "process", 
       headerName: "Process", 
       filter: 'agTextColumnFilter',
@@ -802,6 +812,7 @@ const Calls = () => {
               <option value="all" style={{ background: '#1e1b4b', color: 'white' }}>🔍 All Columns</option>
               <option value="callId" style={{ background: '#1e1b4b', color: 'white' }}>Call ID</option>
               <option value="agentName" style={{ background: '#1e1b4b', color: 'white' }}>Agent Name</option>
+              <option value="customerName" style={{ background: '#1e1b4b', color: 'white' }}>Name</option>
               <option value="process" style={{ background: '#1e1b4b', color: 'white' }}>Process</option>
               <option value="agentEmail" style={{ background: '#1e1b4b', color: 'white' }}>Agent Email</option>
               <option value="auditorName" style={{ background: '#1e1b4b', color: 'white' }}>Auditor Name</option>

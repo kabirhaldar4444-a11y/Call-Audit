@@ -126,7 +126,8 @@ const getAllCalls = async (req, res) => {
           (c.process && c.process.toLowerCase().includes(searchVal)) ||
           (c.agentEmail && c.agentEmail.toLowerCase().includes(searchVal)) ||
           (c.talktime && c.talktime.toLowerCase().includes(searchVal)) ||
-          (c.dispose && c.dispose.toLowerCase().includes(searchVal))
+          (c.dispose && c.dispose.toLowerCase().includes(searchVal)) ||
+          (c.customerName && c.customerName.toLowerCase().includes(searchVal))
         );
       }
       
@@ -144,6 +145,9 @@ const getAllCalls = async (req, res) => {
       }
       if (req.query.dispose) {
         callsLocal = callsLocal.filter(c => c.dispose && c.dispose.toLowerCase().includes(req.query.dispose.toLowerCase()));
+      }
+      if (req.query.customerName) {
+        callsLocal = callsLocal.filter(c => c.customerName && c.customerName.toLowerCase().includes(req.query.customerName.toLowerCase()));
       }
       if (req.query.status) {
         callsLocal = callsLocal.filter(c => c.status === req.query.status);
@@ -176,11 +180,12 @@ const getAllCalls = async (req, res) => {
     // Global search or individual field searches
     if (req.query.search) {
       const searchVal = `%${req.query.search}%`;
-      query = query.or(`agent_name.ilike.${searchVal},call_id.ilike.${searchVal},process.ilike.${searchVal},agent_email.ilike.${searchVal},talktime.ilike.${searchVal},dispose.ilike.${searchVal}`);
+      query = query.or(`agent_name.ilike.${searchVal},call_id.ilike.${searchVal},process.ilike.${searchVal},agent_email.ilike.${searchVal},talktime.ilike.${searchVal},dispose.ilike.${searchVal},customer_name.ilike.${searchVal}`);
     } else {
       if (req.query.callId) query = query.ilike('call_id', `%${req.query.callId}%`);
       if (req.query.agentName) query = query.ilike('agent_name', `%${req.query.agentName}%`);
       if (req.query.agentEmail) query = query.ilike('agent_email', `%${req.query.agentEmail}%`);
+      if (req.query.customerName) query = query.ilike('customer_name', `%${req.query.customerName}%`);
       if (req.query.talktime) query = query.ilike('talktime', `%${req.query.talktime}%`);
       if (req.query.dispose) query = query.ilike('dispose', `%${req.query.dispose}%`);
     }
@@ -213,6 +218,7 @@ const getAllCalls = async (req, res) => {
     let pgSortField = 'date';
     if (sortField === 'callId') pgSortField = 'call_id';
     else if (sortField === 'agentName') pgSortField = 'agent_name';
+    else if (sortField === 'customerName') pgSortField = 'customer_name';
     else if (sortField === 'duration') pgSortField = 'duration';
     else if (sortField === 'talktime') pgSortField = 'talktime';
     else if (sortField === 'dispose') pgSortField = 'dispose';
@@ -416,7 +422,7 @@ const uploadCallData = async (req, res) => {
         ).trim();
         
         const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
-        const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || '').trim();
+        const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || normalizedRow['name'] || '').trim();
         const recordingPath = String(normalizedRow['recording path'] || normalizedRow['audio link'] || normalizedRow['audio url'] || normalizedRow['recording link'] || '').trim();
 
         const insertData = {
@@ -1221,7 +1227,7 @@ const parseExcel = async (req, res) => {
         ).trim();
         
         const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
-        const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || '').trim();
+        const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || normalizedRow['name'] || '').trim();
         const recordingPath = String(normalizedRow['recording path'] || normalizedRow['audio link'] || normalizedRow['audio url'] || normalizedRow['recording link'] || '').trim();
 
         const insertData = {

@@ -179,6 +179,7 @@ const Audits = () => {
     listen: true,
     callId: true,
     agentName: true,
+    customerName: true,
     process: true,
     date: true,
     duration: true,
@@ -197,6 +198,7 @@ const Audits = () => {
     { id: 'listen', name: 'Listen' },
     { id: 'callId', name: 'Call ID' },
     { id: 'agentName', name: 'Agent' },
+    { id: 'customerName', name: 'Name' },
     { id: 'process', name: 'Process' },
     { id: 'date', name: 'Date & Time' },
     { id: 'duration', name: 'Duration' },
@@ -511,6 +513,14 @@ const Audits = () => {
       minWidth: 130,
       editable: () => showEditButton,
       hide: !columnVisibility.agentName
+    },
+    { 
+      field: "customerName", 
+      headerName: "Name", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 130,
+      hide: !columnVisibility.customerName
     },
     { 
       field: "process", 

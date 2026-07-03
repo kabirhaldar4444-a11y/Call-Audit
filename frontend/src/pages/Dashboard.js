@@ -196,6 +196,7 @@ const Dashboard = () => {
     listen: true,
     callId: true,
     agentName: true,
+    customerName: true,
     process: true,
     date: true,
     duration: true,
@@ -212,6 +213,7 @@ const Dashboard = () => {
     { id: 'listen', name: 'Listen' },
     { id: 'callId', name: 'Call ID' },
     { id: 'agentName', name: 'Agent' },
+    { id: 'customerName', name: 'Name' },
     { id: 'process', name: 'Process' },
     { id: 'date', name: 'Date & Time' },
     { id: 'duration', name: 'Duration' },
@@ -654,7 +656,7 @@ const Dashboard = () => {
             ).trim();
 
             const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
-            const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || '').trim();
+             const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || normalizedRow['name'] || '').trim();
             const recordingPath = String(normalizedRow['recording path'] || normalizedRow['audio link'] || normalizedRow['audio url'] || normalizedRow['recording link'] || '').trim();
 
             const insertData = {
@@ -903,6 +905,14 @@ const Dashboard = () => {
       minWidth: 130,
       editable: () => showEditButton,
       hide: !columnVisibility.agentName
+    },
+    { 
+      field: "customerName", 
+      headerName: "Name", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 130,
+      hide: !columnVisibility.customerName
     },
     { 
       field: "process", 
@@ -1267,6 +1277,7 @@ const Dashboard = () => {
               <option value="all" style={{ background: '#1e1b4b', color: 'white' }}>🔍 All Columns</option>
               <option value="callId" style={{ background: '#1e1b4b', color: 'white' }}>Call ID</option>
               <option value="agentName" style={{ background: '#1e1b4b', color: 'white' }}>Agent Name</option>
+              <option value="customerName" style={{ background: '#1e1b4b', color: 'white' }}>Name</option>
               <option value="process" style={{ background: '#1e1b4b', color: 'white' }}>Process</option>
               <option value="agentEmail" style={{ background: '#1e1b4b', color: 'white' }}>Agent Email</option>
               <option value="auditorName" style={{ background: '#1e1b4b', color: 'white' }}>Auditor Name</option>
