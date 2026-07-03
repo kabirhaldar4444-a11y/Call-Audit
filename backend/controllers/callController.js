@@ -107,19 +107,103 @@ const mapCallToFrontend = (call) => {
   };
 };
 
+const parseSearchDate = (str) => {
+  if (!str) return null;
+  const trimmed = str.trim();
+  
+  // Format matching YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const start = new Date(trimmed + 'T00:00:00+05:30').toISOString();
+    const end = new Date(trimmed + 'T23:59:59.999+05:30').toISOString();
+    return { start, end };
+  }
+
+  // Format matching DD-MM-YYYY or DD/MM/YYYY
+  const dmyRegex = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/;
+  const match = trimmed.match(dmyRegex);
+  if (match) {
+    const day = String(match[1]).padStart(2, '0');
+    const month = String(match[2]).padStart(2, '0');
+    const year = match[3];
+    const dateStr = `${year}-${month}-${day}`;
+    const start = new Date(dateStr + 'T00:00:00+05:30').toISOString();
+    const end = new Date(dateStr + 'T23:59:59.999+05:30').toISOString();
+    return { start, end };
+  }
+
+  // Fallback to general date parse
+  let d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    if (/^\d{4}$/.test(trimmed)) {
+      const year = parseInt(trimmed, 10);
+      const start = new Date(`${year}-01-01T00:00:00+05:30`).toISOString();
+      const end = new Date(`${year}-12-31T23:59:59.999+05:30`).toISOString();
+      return { start, end };
+    }
+    if (/^\d{4}-\d{2}$/.test(trimmed)) {
+      const parts = trimmed.split('-');
+      const year = parts[0];
+      const month = parts[1];
+      const lastDay = new Date(year, parseInt(month, 10), 0).getDate();
+      const start = new Date(`${year}-${month}-01T00:00:00+05:30`).toISOString();
+      const end = new Date(`${year}-${month}-${lastDay}T23:59:59.999+05:30`).toISOString();
+      return { start, end };
+    }
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    const start = new Date(dateStr + 'T00:00:00+05:30').toISOString();
+    const end = new Date(dateStr + 'T23:59:59.999+05:30').toISOString();
+    return { start, end };
+  }
+
+  return null;
+};
+
+const getQueryParamString = (param) => {
+  if (!param) return '';
+  if (Array.isArray(param)) return param[param.length - 1];
+  return String(param);
+};
+
+const isDateMatch = (dateStr, searchStr) => {
+  if (!dateStr) return false;
+  try {
+    const formatted = new Date(dateStr).toLocaleString().toLowerCase();
+    return formatted.includes(searchStr.toLowerCase());
+  } catch (e) {
+    return false;
+  }
+};
+
 const getAllCalls = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
+    const search = getQueryParamString(req.query.search);
+    const callId = getQueryParamString(req.query.callId);
+    const agentName = getQueryParamString(req.query.agentName);
+    const agentEmail = getQueryParamString(req.query.agentEmail);
+    const customerName = getQueryParamString(req.query.customerName);
+    const talktime = getQueryParamString(req.query.talktime);
+    const dispose = getQueryParamString(req.query.dispose);
+    const secondDispose = getQueryParamString(req.query.secondDispose);
+    const duration = getQueryParamString(req.query.duration);
+    const status = getQueryParamString(req.query.status);
+    const auditorName = getQueryParamString(req.query.auditorName);
+    const processParam = getQueryParamString(req.query.process);
+    const dateParam = getQueryParamString(req.query.date);
+
     // Local fallback if offline mode
     if (process.env.DB_MODE === 'offline') {
       let callsLocal = getCallsFromLocalFile(req.query);
       
       // Global search filtering locally
-      if (req.query.search) {
-        const searchVal = req.query.search.toLowerCase();
+      if (search) {
+        const searchVal = search.toLowerCase();
         callsLocal = callsLocal.filter(c => 
           (c.agentName && c.agentName.toLowerCase().includes(searchVal)) ||
           (c.callId && c.callId.toLowerCase().includes(searchVal)) ||
@@ -127,33 +211,55 @@ const getAllCalls = async (req, res) => {
           (c.agentEmail && c.agentEmail.toLowerCase().includes(searchVal)) ||
           (c.talktime && c.talktime.toLowerCase().includes(searchVal)) ||
           (c.dispose && c.dispose.toLowerCase().includes(searchVal)) ||
-          (c.customerName && c.customerName.toLowerCase().includes(searchVal))
+          (c.customerName && c.customerName.toLowerCase().includes(searchVal)) ||
+          (c.secondDispose && c.secondDispose.toLowerCase().includes(searchVal)) ||
+          (c.duration && c.duration.toLowerCase().includes(searchVal)) ||
+          (c.status && c.status.toLowerCase().includes(searchVal)) ||
+          (c.auditorName && c.auditorName.toLowerCase().includes(searchVal)) ||
+          isDateMatch(c.date, searchVal)
         );
       }
       
-      if (req.query.callId) {
-        callsLocal = callsLocal.filter(c => c.callId && c.callId.toLowerCase().includes(req.query.callId.toLowerCase()));
+      if (callId) {
+        callsLocal = callsLocal.filter(c => c.callId && c.callId.toLowerCase().includes(callId.toLowerCase()));
       }
-      if (req.query.agentName) {
-        callsLocal = callsLocal.filter(c => c.agentName && c.agentName.toLowerCase().includes(req.query.agentName.toLowerCase()));
+      if (agentName) {
+        callsLocal = callsLocal.filter(c => c.agentName && c.agentName.toLowerCase().includes(agentName.toLowerCase()));
       }
-      if (req.query.agentEmail) {
-        callsLocal = callsLocal.filter(c => c.agentEmail && c.agentEmail.toLowerCase().includes(req.query.agentEmail.toLowerCase()));
+      if (agentEmail) {
+        callsLocal = callsLocal.filter(c => c.agentEmail && c.agentEmail.toLowerCase().includes(agentEmail.toLowerCase()));
       }
-      if (req.query.talktime) {
-        callsLocal = callsLocal.filter(c => c.talktime && c.talktime.toLowerCase().includes(req.query.talktime.toLowerCase()));
+      if (talktime) {
+        callsLocal = callsLocal.filter(c => c.talktime && c.talktime.toLowerCase().includes(talktime.toLowerCase()));
       }
-      if (req.query.dispose) {
-        callsLocal = callsLocal.filter(c => c.dispose && c.dispose.toLowerCase().includes(req.query.dispose.toLowerCase()));
+      if (dispose) {
+        callsLocal = callsLocal.filter(c => c.dispose && c.dispose.toLowerCase().includes(dispose.toLowerCase()));
       }
-      if (req.query.customerName) {
-        callsLocal = callsLocal.filter(c => c.customerName && c.customerName.toLowerCase().includes(req.query.customerName.toLowerCase()));
+      if (customerName) {
+        callsLocal = callsLocal.filter(c => c.customerName && c.customerName.toLowerCase().includes(customerName.toLowerCase()));
       }
-      if (req.query.status) {
-        callsLocal = callsLocal.filter(c => c.status === req.query.status);
+      if (secondDispose) {
+        callsLocal = callsLocal.filter(c => c.secondDispose && c.secondDispose.toLowerCase().includes(secondDispose.toLowerCase()));
       }
-      if (req.query.auditorName) {
-        callsLocal = callsLocal.filter(c => c.auditorName === req.query.auditorName);
+      if (duration) {
+        callsLocal = callsLocal.filter(c => c.duration && c.duration.toLowerCase().includes(duration.toLowerCase()));
+      }
+      if (status) {
+        callsLocal = callsLocal.filter(c => c.status && c.status.toLowerCase().includes(status.toLowerCase()));
+      }
+      if (auditorName) {
+        callsLocal = callsLocal.filter(c => c.auditorName && c.auditorName.toLowerCase().includes(auditorName.toLowerCase()));
+      }
+      if (dateParam) {
+        const parsedDate = parseSearchDate(dateParam);
+        if (parsedDate) {
+          const start = new Date(parsedDate.start);
+          const end = new Date(parsedDate.end);
+          callsLocal = callsLocal.filter(c => {
+            const cDate = new Date(c.date);
+            return cDate >= start && cDate <= end;
+          });
+        }
       }
 
       const total = callsLocal.length;
@@ -178,25 +284,33 @@ const getAllCalls = async (req, res) => {
       .eq('is_active', true);
 
     // Global search or individual field searches
-    if (req.query.search) {
-      const searchVal = `%${req.query.search}%`;
-      query = query.or(`agent_name.ilike.${searchVal},call_id.ilike.${searchVal},process.ilike.${searchVal},agent_email.ilike.${searchVal},talktime.ilike.${searchVal},dispose.ilike.${searchVal},customer_name.ilike.${searchVal}`);
+    if (search) {
+      const searchVal = `%${search}%`;
+      query = query.or(`agent_name.ilike.${searchVal},call_id.ilike.${searchVal},process.ilike.${searchVal},agent_email.ilike.${searchVal},talktime.ilike.${searchVal},dispose.ilike.${searchVal},customer_name.ilike.${searchVal},second_dispose.ilike.${searchVal},duration.ilike.${searchVal},status.ilike.${searchVal},auditor_name.ilike.${searchVal}`);
     } else {
-      if (req.query.callId) query = query.ilike('call_id', `%${req.query.callId}%`);
-      if (req.query.agentName) query = query.ilike('agent_name', `%${req.query.agentName}%`);
-      if (req.query.agentEmail) query = query.ilike('agent_email', `%${req.query.agentEmail}%`);
-      if (req.query.customerName) query = query.ilike('customer_name', `%${req.query.customerName}%`);
-      if (req.query.talktime) query = query.ilike('talktime', `%${req.query.talktime}%`);
-      if (req.query.dispose) query = query.ilike('dispose', `%${req.query.dispose}%`);
+      if (callId) query = query.ilike('call_id', `%${callId}%`);
+      if (agentName) query = query.ilike('agent_name', `%${agentName}%`);
+      if (agentEmail) query = query.ilike('agent_email', `%${agentEmail}%`);
+      if (customerName) query = query.ilike('customer_name', `%${customerName}%`);
+      if (talktime) query = query.ilike('talktime', `%${talktime}%`);
+      if (dispose) query = query.ilike('dispose', `%${dispose}%`);
+      if (secondDispose) query = query.ilike('second_dispose', `%${secondDispose}%`);
+      if (duration) query = query.ilike('duration', `%${duration}%`);
+      if (dateParam) {
+        const parsedDate = parseSearchDate(dateParam);
+        if (parsedDate) {
+          query = query.gte('date', parsedDate.start).lte('date', parsedDate.end);
+        }
+      }
     }
 
-    if (req.query.process) query = query.ilike('process', `%${req.query.process}%`);
-    if (req.query.status) query = query.eq('status', req.query.status);
-    if (req.query.auditorName) query = query.eq('auditor_name', req.query.auditorName);
+    if (processParam) query = query.ilike('process', `%${processParam}%`);
+    if (status) query = query.ilike('status', `%${status}%`);
+    if (auditorName) query = query.ilike('auditor_name', `%${auditorName}%`);
     
     // Date range — use IST offset (+05:30) for consistent Indian timezone filtering
     if (req.query.dateFrom) {
-      let fromDateStr = req.query.dateFrom;
+      let fromDateStr = getQueryParamString(req.query.dateFrom);
       if (fromDateStr.length === 10) {
         // Construct start-of-day in IST and convert to UTC ISO string
         fromDateStr = new Date(fromDateStr + 'T00:00:00+05:30').toISOString();
@@ -204,7 +318,7 @@ const getAllCalls = async (req, res) => {
       query = query.gte('date', fromDateStr);
     }
     if (req.query.dateTo) {
-      let toDateStr = req.query.dateTo;
+      let toDateStr = getQueryParamString(req.query.dateTo);
       if (toDateStr.length === 10) {
         // Construct end-of-day in IST and convert to UTC ISO string
         toDateStr = new Date(toDateStr + 'T23:59:59.999+05:30').toISOString();

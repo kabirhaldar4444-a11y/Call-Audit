@@ -819,6 +819,9 @@ const Calls = () => {
               <option value="duration" style={{ background: '#1e1b4b', color: 'white' }}>Duration</option>
               <option value="talktime" style={{ background: '#1e1b4b', color: 'white' }}>Talktime</option>
               <option value="dispose" style={{ background: '#1e1b4b', color: 'white' }}>Dispose</option>
+              <option value="secondDispose" style={{ background: '#1e1b4b', color: 'white' }}>Second Dispose</option>
+              <option value="date" style={{ background: '#1e1b4b', color: 'white' }}>Date & Time</option>
+              <option value="status" style={{ background: '#1e1b4b', color: 'white' }}>Status</option>
             </select>
 
             <div className="search-box">
