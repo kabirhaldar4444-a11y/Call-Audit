@@ -9,3 +9,5 @@ frontend/.env.local
 dist/
 build/
 *.log
+backend/data/
+scratch/

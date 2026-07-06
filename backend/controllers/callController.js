@@ -103,7 +103,9 @@ const mapCallToFrontend = (call) => {
     isActive: call.is_active,
     createdAt: call.created_at,
     updatedAt: call.updated_at,
-    auditorName: call.auditor_name
+    auditorName: call.auditor_name,
+    disconnectedBy: call.disconnected_by || call.disconnectedBy,
+    campaign: call.campaign
   };
 };
 
@@ -196,28 +198,50 @@ const getAllCalls = async (req, res) => {
     const auditorName = getQueryParamString(req.query.auditorName);
     const processParam = getQueryParamString(req.query.process);
     const dateParam = getQueryParamString(req.query.date);
+    const disconnectedBy = getQueryParamString(req.query.disconnectedBy);
+    const campaign = getQueryParamString(req.query.campaign);
+    const searchColumnsParam = getQueryParamString(req.query.searchColumns);
 
     // Local fallback if offline mode
     if (process.env.DB_MODE === 'offline') {
-      let callsLocal = getCallsFromLocalFile(req.query);
+      let callsLocal = getCallsFromLocalFile({ dateFrom: req.query.dateFrom, dateTo: req.query.dateTo });
       
       // Global search filtering locally
       if (search) {
         const searchVal = search.toLowerCase();
-        callsLocal = callsLocal.filter(c => 
-          (c.agentName && c.agentName.toLowerCase().includes(searchVal)) ||
-          (c.callId && c.callId.toLowerCase().includes(searchVal)) ||
-          (c.process && c.process.toLowerCase().includes(searchVal)) ||
-          (c.agentEmail && c.agentEmail.toLowerCase().includes(searchVal)) ||
-          (c.talktime && c.talktime.toLowerCase().includes(searchVal)) ||
-          (c.dispose && c.dispose.toLowerCase().includes(searchVal)) ||
-          (c.customerName && c.customerName.toLowerCase().includes(searchVal)) ||
-          (c.secondDispose && c.secondDispose.toLowerCase().includes(searchVal)) ||
-          (c.duration && c.duration.toLowerCase().includes(searchVal)) ||
-          (c.status && c.status.toLowerCase().includes(searchVal)) ||
-          (c.auditorName && c.auditorName.toLowerCase().includes(searchVal)) ||
-          isDateMatch(c.date, searchVal)
-        );
+        const cols = searchColumnsParam && searchColumnsParam !== 'all' ? searchColumnsParam.split(',') : [];
+        
+        callsLocal = callsLocal.filter(c => {
+          if (cols.length === 0) {
+            return (
+              (c.agentName && c.agentName.toLowerCase().includes(searchVal)) ||
+              (c.callId && c.callId.toLowerCase().includes(searchVal)) ||
+              (c.process && c.process.toLowerCase().includes(searchVal)) ||
+              (c.agentEmail && c.agentEmail.toLowerCase().includes(searchVal)) ||
+              (c.talktime && c.talktime.toLowerCase().includes(searchVal)) ||
+              (c.dispose && c.dispose.toLowerCase().includes(searchVal)) ||
+              (c.customerName && c.customerName.toLowerCase().includes(searchVal)) ||
+              (c.secondDispose && c.secondDispose.toLowerCase().includes(searchVal)) ||
+              (c.duration && c.duration.toLowerCase().includes(searchVal)) ||
+              (c.status && c.status.toLowerCase().includes(searchVal)) ||
+              (c.auditorName && c.auditorName.toLowerCase().includes(searchVal)) ||
+              (c.disconnectedBy && c.disconnectedBy.toLowerCase().includes(searchVal)) ||
+              (c.campaign && c.campaign.toLowerCase().includes(searchVal)) ||
+              isDateMatch(c.date, searchVal)
+            );
+          } else {
+            return cols.some(col => {
+              const val = c[col];
+              if (val) {
+                return String(val).toLowerCase().includes(searchVal);
+              }
+              if (col === 'date' && c.date) {
+                return isDateMatch(c.date, searchVal);
+              }
+              return false;
+            });
+          }
+        });
       }
       
       if (callId) {
@@ -249,6 +273,16 @@ const getAllCalls = async (req, res) => {
       }
       if (auditorName) {
         callsLocal = callsLocal.filter(c => c.auditorName && c.auditorName.toLowerCase().includes(auditorName.toLowerCase()));
+      }
+      if (disconnectedBy) {
+        callsLocal = callsLocal.filter(c => c.disconnectedBy && c.disconnectedBy.toLowerCase().includes(disconnectedBy.toLowerCase()));
+      }
+      if (campaign) {
+        callsLocal = callsLocal.filter(c => c.campaign && c.campaign.toLowerCase().includes(campaign.toLowerCase()));
+      }
+      if (processParam) {
+        const procArray = processParam.split(',').map(p => p.trim().toLowerCase());
+        callsLocal = callsLocal.filter(c => c.process && procArray.includes(c.process.toLowerCase()));
       }
       if (dateParam) {
         const parsedDate = parseSearchDate(dateParam);
@@ -286,7 +320,34 @@ const getAllCalls = async (req, res) => {
     // Global search or individual field searches
     if (search) {
       const searchVal = `%${search}%`;
-      query = query.or(`agent_name.ilike.${searchVal},call_id.ilike.${searchVal},process.ilike.${searchVal},agent_email.ilike.${searchVal},talktime.ilike.${searchVal},dispose.ilike.${searchVal},customer_name.ilike.${searchVal},second_dispose.ilike.${searchVal},duration.ilike.${searchVal},status.ilike.${searchVal},auditor_name.ilike.${searchVal}`);
+      let columnsToSearch = [];
+      if (searchColumnsParam && searchColumnsParam !== 'all') {
+        const cols = searchColumnsParam.split(',');
+        cols.forEach(col => {
+          let dbCol = '';
+          if (col === 'callId') dbCol = 'call_id';
+          else if (col === 'agentName') dbCol = 'agent_name';
+          else if (col === 'customerName') dbCol = 'customer_name';
+          else if (col === 'process') dbCol = 'process';
+          else if (col === 'agentEmail') dbCol = 'agent_email';
+          else if (col === 'auditorName') dbCol = 'auditor_name';
+          else if (col === 'duration') dbCol = 'duration';
+          else if (col === 'talktime') dbCol = 'talktime';
+          else if (col === 'dispose') dbCol = 'dispose';
+          else if (col === 'secondDispose') dbCol = 'second_dispose';
+          else if (col === 'disconnectedBy') dbCol = 'disconnected_by';
+          else if (col === 'campaign') dbCol = 'campaign';
+          else if (col === 'status') dbCol = 'status';
+          
+          if (dbCol) columnsToSearch.push(`${dbCol}.ilike.${searchVal}`);
+        });
+      }
+      
+      if (columnsToSearch.length === 0) {
+        query = query.or(`agent_name.ilike.${searchVal},call_id.ilike.${searchVal},process.ilike.${searchVal},agent_email.ilike.${searchVal},talktime.ilike.${searchVal},dispose.ilike.${searchVal},customer_name.ilike.${searchVal},second_dispose.ilike.${searchVal},duration.ilike.${searchVal},status.ilike.${searchVal},auditor_name.ilike.${searchVal},disconnected_by.ilike.${searchVal},campaign.ilike.${searchVal}`);
+      } else {
+        query = query.or(columnsToSearch.join(','));
+      }
     } else {
       if (callId) query = query.ilike('call_id', `%${callId}%`);
       if (agentName) query = query.ilike('agent_name', `%${agentName}%`);
@@ -296,6 +357,8 @@ const getAllCalls = async (req, res) => {
       if (dispose) query = query.ilike('dispose', `%${dispose}%`);
       if (secondDispose) query = query.ilike('second_dispose', `%${secondDispose}%`);
       if (duration) query = query.ilike('duration', `%${duration}%`);
+      if (disconnectedBy) query = query.ilike('disconnected_by', `%${disconnectedBy}%`);
+      if (campaign) query = query.ilike('campaign', `%${campaign}%`);
       if (dateParam) {
         const parsedDate = parseSearchDate(dateParam);
         if (parsedDate) {
@@ -304,7 +367,12 @@ const getAllCalls = async (req, res) => {
       }
     }
 
-    if (processParam) query = query.ilike('process', `%${processParam}%`);
+    if (processParam) {
+      const processArray = processParam.split(',').map(p => p.trim());
+      if (processArray.length > 0) {
+        query = query.in('process', processArray);
+      }
+    }
     if (status) query = query.ilike('status', `%${status}%`);
     if (auditorName) query = query.ilike('auditor_name', `%${auditorName}%`);
     
@@ -336,6 +404,8 @@ const getAllCalls = async (req, res) => {
     else if (sortField === 'duration') pgSortField = 'duration';
     else if (sortField === 'talktime') pgSortField = 'talktime';
     else if (sortField === 'dispose') pgSortField = 'dispose';
+    else if (sortField === 'disconnectedBy') pgSortField = 'disconnected_by';
+    else if (sortField === 'campaign') pgSortField = 'campaign';
 
     query = query.order(pgSortField, { ascending: sortOrder }).range(skip, skip + limit - 1);
 
@@ -390,7 +460,7 @@ const getCallById = async (req, res) => {
 
 const createCall = async (req, res) => {
   try {
-    const { callId, agentName, date, phoneNumber, duration, talktime, dispose, remarks } = req.body;
+    const { callId, agentName, date, phoneNumber, duration, talktime, dispose, remarks, disconnectedBy, campaign, process: processVal } = req.body;
 
     if (!callId || !agentName || !date) {
       return res.status(400).json({ message: 'Please provide all required fields' });
@@ -401,6 +471,7 @@ const createCall = async (req, res) => {
         _id: 'call-' + Date.now(),
         callId,
         agentName,
+        process: processVal,
         date: new Date(date).toISOString(),
         phoneNumber,
         duration,
@@ -411,7 +482,9 @@ const createCall = async (req, res) => {
         uploadedBy: req.userId,
         status: 'pending',
         isActive: true,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        disconnectedBy,
+        campaign
       };
       saveToLocalFile(newCall);
       return res.status(201).json({ message: 'Call created successfully', data: newCall });
@@ -432,6 +505,7 @@ const createCall = async (req, res) => {
       .insert([{
         call_id: callId,
         agent_name: agentName,
+        process: processVal,
         date: new Date(date).toISOString(),
         phone_number: phoneNumber,
         duration,
@@ -441,7 +515,9 @@ const createCall = async (req, res) => {
         audio_url: '',
         uploaded_by: req.userId,
         status: 'pending',
-        is_active: true
+        is_active: true,
+        disconnected_by: disconnectedBy,
+        campaign
       }])
       .select()
       .single();
@@ -534,6 +610,14 @@ const uploadCallData = async (req, res) => {
         const secondDispose = String(
           normalizedRow['second dispose'] || normalizedRow['dispose 2'] || ''
         ).trim();
+
+        const disconnectedBy = String(
+          normalizedRow['disconnected by'] || normalizedRow['disconnectedby'] || normalizedRow['disconnected'] || ''
+        ).trim();
+
+        const campaign = String(
+          normalizedRow['campaign'] || normalizedRow['campaign name'] || ''
+        ).trim();
         
         const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
         const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || normalizedRow['name'] || '').trim();
@@ -553,7 +637,9 @@ const uploadCallData = async (req, res) => {
           remarks,
           customer_name: customerName,
           uploaded_by: req.userId,
-          is_active: true
+          is_active: true,
+          disconnected_by: disconnectedBy,
+          campaign: campaign
         };
 
         if (recordingPath) {
@@ -915,13 +1001,13 @@ const updateCallStatus = async (req, res) => {
 const updateCall = async (req, res) => {
   try {
     const { id } = req.params;
-    const { agentName, process: callProcess, status, duration, talktime, dispose, secondDispose, auditorName } = req.body;
+    const { agentName, process: callProcess, status, duration, talktime, dispose, secondDispose, auditorName, disconnectedBy, campaign } = req.body;
     
     // Role-based validation: normal persons can only update status and auditorName
     const isAdmin = req.userRole === 'admin' || req.userRole === 'superadmin';
     if (!isAdmin) {
-      if (agentName !== undefined || callProcess !== undefined || duration !== undefined || talktime !== undefined || dispose !== undefined || secondDispose !== undefined) {
-        return res.status(403).json({ status: 'error', message: 'You do not have permission to edit agent details, process, duration, talktime, dispose, or second dispose.' });
+      if (agentName !== undefined || callProcess !== undefined || duration !== undefined || talktime !== undefined || dispose !== undefined || secondDispose !== undefined || disconnectedBy !== undefined || campaign !== undefined) {
+        return res.status(403).json({ status: 'error', message: 'You do not have permission to edit agent details, process, duration, talktime, dispose, second dispose, disconnected by, or campaign.' });
       }
     }
     
@@ -939,6 +1025,8 @@ const updateCall = async (req, res) => {
           dispose: dispose !== undefined ? dispose : callsLocal[callIndex].dispose,
           secondDispose: secondDispose !== undefined ? secondDispose : callsLocal[callIndex].secondDispose,
           auditorName: auditorName !== undefined ? auditorName : callsLocal[callIndex].auditorName,
+          disconnectedBy: disconnectedBy !== undefined ? disconnectedBy : callsLocal[callIndex].disconnectedBy,
+          campaign: campaign !== undefined ? campaign : callsLocal[callIndex].campaign,
           updatedAt: new Date().toISOString()
         };
         saveToLocalFile(updatedCall);
@@ -956,6 +1044,8 @@ const updateCall = async (req, res) => {
       if (dispose !== undefined) updateData.dispose = dispose;
       if (secondDispose !== undefined) updateData.second_dispose = secondDispose;
       if (auditorName !== undefined) updateData.auditor_name = auditorName;
+      if (disconnectedBy !== undefined) updateData.disconnected_by = disconnectedBy;
+      if (campaign !== undefined) updateData.campaign = campaign;
       
       let resultCall = null;
       const { data: call, error } = await supabase
@@ -1193,8 +1283,8 @@ const getAuditorStats = async (req, res) => {
       }
 
       if (process) {
-        const procVal = process.toLowerCase();
-        callsLocal = callsLocal.filter(c => c.process && c.process.toLowerCase().includes(procVal));
+        const procArray = process.split(',').map(p => p.trim().toLowerCase());
+        callsLocal = callsLocal.filter(c => c.process && procArray.includes(c.process.toLowerCase()));
       }
 
       // Perform grouping
@@ -1228,7 +1318,10 @@ const getAuditorStats = async (req, res) => {
     }
 
     if (process) {
-      query = query.ilike('process', `%${process}%`);
+      const processArray = process.split(',').map(p => p.trim());
+      if (processArray.length > 0) {
+        query = query.in('process', processArray);
+      }
     }
 
     if (dateFrom) {
@@ -1339,6 +1432,14 @@ const parseExcel = async (req, res) => {
         const secondDispose = String(
           normalizedRow['second dispose'] || normalizedRow['dispose 2'] || ''
         ).trim();
+
+        const disconnectedBy = String(
+          normalizedRow['disconnected by'] || normalizedRow['disconnectedby'] || normalizedRow['disconnected'] || ''
+        ).trim();
+
+        const campaign = String(
+          normalizedRow['campaign'] || normalizedRow['campaign name'] || ''
+        ).trim();
         
         const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
         const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || normalizedRow['name'] || '').trim();
@@ -1357,7 +1458,9 @@ const parseExcel = async (req, res) => {
           second_dispose: secondDispose,
           remarks,
           customer_name: customerName,
-          audio_url: recordingPath || ''
+          audio_url: recordingPath || '',
+          disconnected_by: disconnectedBy,
+          campaign: campaign
         };
 
         parsedRows.push(insertData);
@@ -1417,7 +1520,9 @@ const uploadChunk = async (req, res) => {
             uploadedBy: req.userId,
             status: 'pending',
             isActive: true,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            disconnectedBy: item.disconnected_by || item.disconnectedBy,
+            campaign: item.campaign
           };
           saveToLocalFile(callObj);
           newCalls.push(callObj);
@@ -1457,7 +1562,9 @@ const uploadChunk = async (req, res) => {
           customer_name: item.customer_name,
           audio_url: item.audio_url || '',
           uploaded_by: req.userId,
-          is_active: true
+          is_active: true,
+          disconnected_by: item.disconnected_by || item.disconnectedBy,
+          campaign: item.campaign
         });
       }
     }

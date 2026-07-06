@@ -35,6 +35,8 @@ CREATE TABLE public.calls (
     talktime TEXT DEFAULT '',
     dispose TEXT DEFAULT '',
     second_dispose TEXT DEFAULT '',
+    disconnected_by TEXT DEFAULT '',
+    campaign TEXT DEFAULT '',
     remarks TEXT,
     audio_url TEXT DEFAULT '',
     audio_filename TEXT,

@@ -167,6 +167,8 @@ const Dashboard = () => {
 
   // UI state toggles
   const [isColChooserOpen, setIsColChooserOpen] = useState(false);
+  const [isSearchColDropdownOpen, setIsSearchColDropdownOpen] = useState(false);
+  const [isProcessDropdownOpen, setIsProcessDropdownOpen] = useState(false);
   const [selectedAudio, setSelectedAudio] = useState(null);
 
   // Modals state
@@ -203,6 +205,8 @@ const Dashboard = () => {
     talktime: true,
     dispose: true,
     secondDispose: true,
+    disconnectedBy: true,
+    campaign: true,
     agentEmail: true,
     auditorName: true,
     status: true,
@@ -220,6 +224,8 @@ const Dashboard = () => {
     { id: 'talktime', name: 'Talktime' },
     { id: 'dispose', name: 'Dispose' },
     { id: 'secondDispose', name: 'Second Dispose' },
+    { id: 'disconnectedBy', name: 'Disconnected By' },
+    { id: 'campaign', name: 'Campaign' },
     { id: 'agentEmail', name: 'Agent Email' },
     { id: 'auditorName', name: 'Auditor Name' },
     { id: 'status', name: 'Status' },
@@ -272,11 +278,8 @@ const Dashboard = () => {
       });
 
       if (appliedFilters.search) {
-        if (appliedFilters.searchColumn === 'all') {
-          queryParams.append('search', appliedFilters.search);
-        } else {
-          queryParams.append(appliedFilters.searchColumn, appliedFilters.search);
-        }
+        queryParams.append('search', appliedFilters.search);
+        queryParams.append('searchColumns', appliedFilters.searchColumn);
       }
 
       const [statsRes, callsRes] = await Promise.all([
@@ -336,7 +339,9 @@ const Dashboard = () => {
         dispose: data.dispose,
         secondDispose: data.secondDispose,
         status: data.status,
-        auditorName: data.auditorName
+        auditorName: data.auditorName,
+        disconnectedBy: data.disconnectedBy,
+        campaign: data.campaign
       };
       
       await api.patch(`/calls/${targetId}`, payload);
@@ -396,7 +401,9 @@ const Dashboard = () => {
       talktime: call.talktime || '',
       dispose: call.dispose || '',
       secondDispose: call.secondDispose || '',
-      auditorName: call.auditorName || ''
+      auditorName: call.auditorName || '',
+      disconnectedBy: call.disconnectedBy || '',
+      campaign: call.campaign || ''
     });
   };
 
@@ -415,7 +422,9 @@ const Dashboard = () => {
         talktime: editFormData.talktime,
         dispose: editFormData.dispose,
         secondDispose: editFormData.secondDispose,
-        auditorName: editFormData.auditorName
+        auditorName: editFormData.auditorName,
+        disconnectedBy: editFormData.disconnectedBy,
+        campaign: editFormData.campaign
       });
       
       fetchAuditorNames();
@@ -655,6 +664,14 @@ const Dashboard = () => {
               normalizedRow['second dispose'] || normalizedRow['dispose 2'] || ''
             ).trim();
 
+            const disconnectedBy = String(
+              normalizedRow['disconnected by'] || normalizedRow['disconnectedby'] || normalizedRow['disconnected'] || ''
+            ).trim();
+
+            const campaign = String(
+              normalizedRow['campaign'] || normalizedRow['campaign name'] || ''
+            ).trim();
+
             const remarks = String(normalizedRow['remarks'] || normalizedRow['comment'] || '').trim();
              const customerName = String(normalizedRow['customer name'] || normalizedRow['customer'] || normalizedRow['name'] || '').trim();
             const recordingPath = String(normalizedRow['recording path'] || normalizedRow['audio link'] || normalizedRow['audio url'] || normalizedRow['recording link'] || '').trim();
@@ -672,7 +689,9 @@ const Dashboard = () => {
               second_dispose: secondDispose,
               remarks,
               customer_name: customerName,
-              audio_url: recordingPath || ''
+              audio_url: recordingPath || '',
+              disconnected_by: disconnectedBy,
+              campaign: campaign
             };
 
             parsedRows.push(insertData);
@@ -970,6 +989,24 @@ const Dashboard = () => {
       hide: !columnVisibility.secondDispose
     },
     { 
+      field: "disconnectedBy", 
+      headerName: "Disconnected By", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 150,
+      editable: () => showEditButton,
+      hide: !columnVisibility.disconnectedBy
+    },
+    { 
+      field: "campaign", 
+      headerName: "Campaign", 
+      filter: 'agTextColumnFilter',
+      sortable: true,
+      minWidth: 130,
+      editable: () => showEditButton,
+      hide: !columnVisibility.campaign
+    },
+    { 
       field: "agentEmail", 
       headerName: "Agent Email", 
       filter: 'agTextColumnFilter',
@@ -1257,37 +1294,114 @@ const Dashboard = () => {
         {/* Modern Filter & Search Toolbar */}
         <div className="calls-toolbar">
           <div className="toolbar-left-group">
-            <select 
-              value={filters.searchColumn} 
-              onChange={(e) => setFilters(prev => ({ ...prev, searchColumn: e.target.value }))}
-              className="toolbar-select search-column-select"
-              title="Select column to search by"
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                color: 'var(--text-primary)',
-                padding: '10px 16px',
-                fontSize: '14px',
-                cursor: 'pointer',
-                outline: 'none',
-                maxWidth: '150px'
-              }}
-            >
-              <option value="all" style={{ background: '#1e1b4b', color: 'white' }}>🔍 All Columns</option>
-              <option value="callId" style={{ background: '#1e1b4b', color: 'white' }}>Call ID</option>
-              <option value="agentName" style={{ background: '#1e1b4b', color: 'white' }}>Agent Name</option>
-              <option value="customerName" style={{ background: '#1e1b4b', color: 'white' }}>Name</option>
-              <option value="process" style={{ background: '#1e1b4b', color: 'white' }}>Process</option>
-              <option value="agentEmail" style={{ background: '#1e1b4b', color: 'white' }}>Agent Email</option>
-              <option value="auditorName" style={{ background: '#1e1b4b', color: 'white' }}>Auditor Name</option>
-              <option value="duration" style={{ background: '#1e1b4b', color: 'white' }}>Duration</option>
-              <option value="talktime" style={{ background: '#1e1b4b', color: 'white' }}>Talktime</option>
-              <option value="dispose" style={{ background: '#1e1b4b', color: 'white' }}>Dispose</option>
-              <option value="secondDispose" style={{ background: '#1e1b4b', color: 'white' }}>Second Dispose</option>
-              <option value="date" style={{ background: '#1e1b4b', color: 'white' }}>Date & Time</option>
-              <option value="status" style={{ background: '#1e1b4b', color: 'white' }}>Status</option>
-            </select>
+            {/* Custom Multi-Select Search Column Dropdown */}
+            <div className="column-chooser-wrapper search-column-wrapper" style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setIsSearchColDropdownOpen(!isSearchColDropdownOpen)} 
+                className={`toolbar-btn text-btn outline-btn ${isSearchColDropdownOpen ? 'active' : ''}`}
+                title="Select columns to search in"
+                type="button"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  color: 'var(--text-primary)',
+                  padding: '10px 16px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  height: '42px'
+                }}
+              >
+                {filters.searchColumn === 'all' || !filters.searchColumn ? (
+                  <>🔍 All Columns</>
+                ) : (
+                  <>
+                    🔍 {filters.searchColumn.split(',').length === 1 
+                      ? [
+                          { id: 'callId', name: 'Call ID' },
+                          { id: 'agentName', name: 'Agent Name' },
+                          { id: 'customerName', name: 'Customer Name' },
+                          { id: 'process', name: 'Process' },
+                          { id: 'agentEmail', name: 'Agent Email' },
+                          { id: 'auditorName', name: 'Auditor Name' },
+                          { id: 'duration', name: 'Duration' },
+                          { id: 'talktime', name: 'Talktime' },
+                          { id: 'dispose', name: 'Dispose' },
+                          { id: 'secondDispose', name: 'Second Dispose' },
+                          { id: 'disconnectedBy', name: 'Disconnected By' },
+                          { id: 'campaign', name: 'Campaign' },
+                          { id: 'date', name: 'Date & Time' },
+                          { id: 'status', name: 'Status' }
+                        ].find(c => c.id === filters.searchColumn)?.name || filters.searchColumn
+                      : `Columns (${filters.searchColumn.split(',').length})`}
+                  </>
+                )}
+              </button>
+              {isSearchColDropdownOpen && (
+                <>
+                  <div className="col-chooser-backdrop" onClick={() => setIsSearchColDropdownOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }} />
+                  <div className="column-chooser-dropdown" style={{ zIndex: 1000, position: 'absolute', top: '100%', left: 0, marginTop: '8px', background: '#1e1b4b', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '12px', width: '220px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Search In</h4>
+                    <div className="col-chooser-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
+                      <label className="col-chooser-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={filters.searchColumn === 'all' || !filters.searchColumn} 
+                          onChange={() => {
+                            setFilters(prev => ({ ...prev, searchColumn: 'all' }));
+                          }}
+                        />
+                        <span>All Columns</span>
+                      </label>
+                      <hr style={{ border: 0, borderTop: '1px solid rgba(255, 255, 255, 0.1)', margin: '4px 0' }} />
+                      {[
+                        { id: 'callId', name: 'Call ID' },
+                        { id: 'agentName', name: 'Agent Name' },
+                        { id: 'customerName', name: 'Customer Name' },
+                        { id: 'process', name: 'Process' },
+                        { id: 'agentEmail', name: 'Agent Email' },
+                        { id: 'auditorName', name: 'Auditor Name' },
+                        { id: 'duration', name: 'Duration' },
+                        { id: 'talktime', name: 'Talktime' },
+                        { id: 'dispose', name: 'Dispose' },
+                        { id: 'secondDispose', name: 'Second Dispose' },
+                        { id: 'disconnectedBy', name: 'Disconnected By' },
+                        { id: 'campaign', name: 'Campaign' },
+                        { id: 'date', name: 'Date & Time' },
+                        { id: 'status', name: 'Status' }
+                      ].map(col => {
+                        const isChecked = filters.searchColumn !== 'all' && filters.searchColumn.split(',').includes(col.id);
+                        return (
+                          <label key={col.id} className="col-chooser-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={isChecked} 
+                              onChange={() => {
+                                setFilters(prev => {
+                                  let currentCols = prev.searchColumn === 'all' || !prev.searchColumn ? [] : prev.searchColumn.split(',');
+                                  if (currentCols.includes(col.id)) {
+                                    currentCols = currentCols.filter(id => id !== col.id);
+                                  } else {
+                                    currentCols.push(col.id);
+                                  }
+                                  const newVal = currentCols.length === 0 ? 'all' : currentCols.join(',');
+                                  return { ...prev, searchColumn: newVal };
+                                });
+                              }}
+                            />
+                            <span>{col.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="search-box">
               <FiSearch className="search-icon" />
@@ -1300,19 +1414,90 @@ const Dashboard = () => {
               />
             </div>
             
-            <select 
-              value={filters.process} 
-              onChange={(e) => {
-                const newProcess = e.target.value;
-                setFilters(prev => ({ ...prev, process: newProcess }));
-                setAppliedFilters(prev => ({ ...prev, process: newProcess }));
-                setPage(1);
-              }}
-              className="toolbar-select"
-            >
-              <option value="">All Processes</option>
-              {processesList.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+            {/* Custom Multi-Select Process Dropdown */}
+            <div className="column-chooser-wrapper process-filter-wrapper" style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setIsProcessDropdownOpen(!isProcessDropdownOpen)} 
+                className={`toolbar-btn text-btn outline-btn ${isProcessDropdownOpen ? 'active' : ''}`}
+                title="Filter by Processes"
+                type="button"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  color: 'var(--text-primary)',
+                  padding: '10px 16px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  height: '42px'
+                }}
+              >
+                {!filters.process ? (
+                  <>⚙️ All Processes</>
+                ) : (
+                  <>
+                    ⚙️ {filters.process.split(',').length === 1 
+                      ? filters.process 
+                      : `Processes (${filters.process.split(',').length})`}
+                  </>
+                )}
+              </button>
+              {isProcessDropdownOpen && (
+                <>
+                  <div className="col-chooser-backdrop" onClick={() => setIsProcessDropdownOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }} />
+                  <div className="column-chooser-dropdown" style={{ zIndex: 1000, position: 'absolute', top: '100%', left: 0, marginTop: '8px', background: '#1e1b4b', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '12px', width: '220px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filter Processes</h4>
+                    <div className="col-chooser-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '250px', overflowY: 'auto' }}>
+                      <label className="col-chooser-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={!filters.process} 
+                          onChange={() => {
+                            setFilters(prev => ({ ...prev, process: '' }));
+                            setAppliedFilters(prev => ({ ...prev, process: '' }));
+                            setPage(1);
+                          }}
+                        />
+                        <span>All Processes</span>
+                      </label>
+                      <hr style={{ border: 0, borderTop: '1px solid rgba(255, 255, 255, 0.1)', margin: '4px 0' }} />
+                      {processesList.map(p => {
+                        const isChecked = filters.process && filters.process.split(',').includes(p);
+                        return (
+                          <label key={p} className="col-chooser-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={isChecked} 
+                              onChange={() => {
+                                setFilters(prev => {
+                                  let currentProcs = prev.process ? prev.process.split(',') : [];
+                                  if (currentProcs.includes(p)) {
+                                    currentProcs = currentProcs.filter(item => item !== p);
+                                  } else {
+                                    currentProcs.push(p);
+                                  }
+                                  const newVal = currentProcs.join(',');
+                                  
+                                  setAppliedFilters(applied => ({ ...applied, process: newVal }));
+                                  setPage(1);
+                                  
+                                  return { ...prev, process: newVal };
+                                });
+                              }}
+                            />
+                            <span>{p}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
             <select 
               value={filters.status} 
@@ -1737,6 +1922,14 @@ const Dashboard = () => {
                 <span className="info-value">{viewingCall.secondDispose || 'N/A'}</span>
               </div>
               <div className="info-item">
+                <span className="info-label">Disconnected By</span>
+                <span className="info-value">{viewingCall.disconnectedBy || 'N/A'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Campaign</span>
+                <span className="info-value">{viewingCall.campaign || 'N/A'}</span>
+              </div>
+              <div className="info-item">
                 <span className="info-label">Date & Time</span>
                 <span className="info-value">{viewingCall.date ? new Date(viewingCall.date).toLocaleString() : 'N/A'}</span>
               </div>
@@ -1849,6 +2042,26 @@ const Dashboard = () => {
                   value={editFormData.secondDispose}
                   onChange={(e) => setEditFormData({...editFormData, secondDispose: e.target.value})}
                   placeholder="e.g. Busy"
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Disconnected By</label>
+                <input 
+                  type="text" 
+                  value={editFormData.disconnectedBy}
+                  onChange={(e) => setEditFormData({...editFormData, disconnectedBy: e.target.value})}
+                  placeholder="e.g. Agent / Customer"
+                  className="modal-form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Campaign</label>
+                <input 
+                  type="text" 
+                  value={editFormData.campaign}
+                  onChange={(e) => setEditFormData({...editFormData, campaign: e.target.value})}
+                  placeholder="Campaign name"
                   className="modal-form-input"
                 />
               </div>
