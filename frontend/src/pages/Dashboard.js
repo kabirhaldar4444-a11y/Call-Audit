@@ -141,6 +141,12 @@ const Dashboard = () => {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [localPageSize, setLocalPageSize] = useState('25');
+
+  useEffect(() => {
+    setLocalPageSize(String(pageSize));
+  }, [pageSize]);
+
   const [auditorNames, setAuditorNames] = useState([]);
   const [processesList, setProcessesList] = useState([]);
   
@@ -1677,7 +1683,7 @@ const Dashboard = () => {
         </div>
 
         {/* Pagination at the bottom */}
-        {pagination.totalPages > 1 && (
+        {pagination.total > 0 && (
           <div className="pagination-wrapper">
             <div className="page-size-selector">
               <label>Rows per page:</label>
@@ -1685,20 +1691,32 @@ const Dashboard = () => {
                 type="number"
                 min="1"
                 max="5000"
-                value={pageSize}
+                value={localPageSize}
                 onChange={(e) => {
-                  const val = parseInt(e.target.value);
+                  setLocalPageSize(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = parseInt(localPageSize);
+                    if (val > 0) {
+                      setPageSize(val);
+                      setPage(1);
+                    } else {
+                      setPageSize(25);
+                      setLocalPageSize('25');
+                      setPage(1);
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  const val = parseInt(localPageSize);
                   if (val > 0) {
                     setPageSize(val);
                     setPage(1);
-                  } else if (e.target.value === '') {
-                    setPageSize('');
-                  }
-                }}
-                onBlur={(e) => {
-                  const val = parseInt(e.target.value);
-                  if (!val || val <= 0) {
+                  } else {
                     setPageSize(25);
+                    setLocalPageSize('25');
+                    setPage(1);
                   }
                 }}
                 className="page-size-input"
@@ -1718,47 +1736,49 @@ const Dashboard = () => {
               />
             </div>
 
-            <div className="pagination-controls">
-              <button 
-                disabled={page === 1 || loading} 
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                className="pagination-nav-btn"
-              >
-                Previous
-              </button>
-              
-              <div className="pagination-pages">
-                {(() => {
-                  const pages = [];
-                  const maxVisible = 5;
-                  let start = Math.max(1, page - 2);
-                  let end = Math.min(pagination.totalPages, start + maxVisible - 1);
-                  if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
+            {pagination.totalPages > 1 && (
+              <div className="pagination-controls">
+                <button 
+                  disabled={page === 1 || loading} 
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  className="pagination-nav-btn"
+                >
+                  Previous
+                </button>
+                
+                <div className="pagination-pages">
+                  {(() => {
+                    const pages = [];
+                    const maxVisible = 5;
+                    let start = Math.max(1, page - 2);
+                    let end = Math.min(pagination.totalPages, start + maxVisible - 1);
+                    if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
 
-                  for (let i = start; i <= end; i++) {
-                    pages.push(
-                      <button 
-                        key={i} 
-                        onClick={() => setPage(i)}
-                        className={`pagination-page-btn ${page === i ? 'active' : ''}`}
-                        disabled={loading}
-                      >
-                        {i}
-                      </button>
-                    );
-                  }
-                  return pages;
-                })()}
+                    for (let i = start; i <= end; i++) {
+                      pages.push(
+                        <button 
+                          key={i} 
+                          onClick={() => setPage(i)}
+                          className={`pagination-page-btn ${page === i ? 'active' : ''}`}
+                          disabled={loading}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+                    return pages;
+                  })()}
+                </div>
+
+                <button 
+                  disabled={page === pagination.totalPages || loading} 
+                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                  className="pagination-nav-btn"
+                >
+                  Next
+                </button>
               </div>
-
-              <button 
-                disabled={page === pagination.totalPages || loading} 
-                onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
-                className="pagination-nav-btn"
-              >
-                Next
-              </button>
-            </div>
+            )}
           </div>
         )}
       </div>
